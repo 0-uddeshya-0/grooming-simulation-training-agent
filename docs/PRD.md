@@ -17,7 +17,7 @@ Non-goals: general-purpose grooming tool; persona authoring UI for participants;
 | HR1 | Participants 18+ (age gate); personas age >= 19; no minor-related content | config validator at load + output filter |
 | HR2 | No explicit sexual content or image solicitation; ceiling = `non_explicit_onset` | output filter + stage gating |
 | HR3 | Stop button and text trigger end chat instantly, no persona reply | backend kill endpoint + frontend |
-| HR4 | 45-min cap, server-side, visible timer | backend clock |
+| HR4 | 45-min cap per persona conversation, enforced server-side (sweeper + per-request check). Visible timer removed by researcher decision (D-021) | backend clock |
 | HR5 | Fully local, no runtime network, no telemetry | llama-server bound to 127.0.0.1; no external calls |
 | HR6 | Pseudonymous IDs, minimal logs, deletion on request | storage layer + delete CLI |
 | HR7 | No second LLM watching attacker output | design |

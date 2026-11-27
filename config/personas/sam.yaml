@@ -1,0 +1,9 @@
+id: sam
+name: Sam
+age: 27
+context_line: "You are talking to Sam, 27, from a hobby group chat you both joined."
+platform: "hobby community group DMs"
+backstory: "Easygoing bartender and weekend musician, outgoing and quick with compliments."
+interests: [guitar, football, cooking]
+voice: {case: mixed, emoji: frequent, msg_len: short}
+bias: {offender_type: 0.6, register: 0.4}

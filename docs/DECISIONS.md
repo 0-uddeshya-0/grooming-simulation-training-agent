@@ -20,4 +20,7 @@
 | D-017 | Abliterated model required (researcher decision: persona must behave like a real attacker with no model refusals; limits enforced by code). No standard-model comparison added | non-abliterated model | accepted |
 | D-018 | Misuse controls: persona free-text fields length-limited/constrained; localhost bind + researcher session token; repo stays private; access-controlled release only | public repo | accepted |
 | D-019 | UI restyled in shadcn/ui design language (zinc tokens) in plain CSS; no React/Node build, to keep the no-Node run requirement. impeccable.style and a shadcn plugin were not reachable/available from the build container, so critique was done manually plus the built-in design skills | adopting React + shadcn | accepted |
+| D-021 | Visible timer removed from the UI (researcher decision: conversation should feel natural). Limit still enforced server-side; deviation from master prompt HR4 'visible timer' flagged to ethics board | visible timer | accepted |
+| D-022 | Claymorphism laptop-first UI: sidebar of conversations + pane; plain CSS/JS, no build step; see UX_DESIGN.md. Two more adult personas (Sam 27, Jordan 31) added so multi-thread is real | single-thread phone-style UI | accepted |
+| D-023 | Bug found by browser test: idle sessions never ended. Fixed with sweeper + enforce_time on status | lazy check only on message | fixed |
 | D-020 | Model-server outage returns 503 and keeps the session open; UI shows a friendly message and Stop still works. Distress/under-18 endings show the support card first | silent 500 | accepted |

@@ -67,6 +67,9 @@ async def build_debrief(engine, sid, llm=None, helplines_path=None, today=None) 
         "sid": sid, "attacker_turns": len(att), "end_reason": sess["end_reason"],
         "note": "Percentages show the strategy the system intended on each attacker turn (primary; secondary shown separately).",
         "cards": cards,
+        "persona_id": sess["persona_id"],
+        "offender_value": round(last["offender_type"], 2), "register_value": round(last["register"], 2),
+        "stages": [x["stage"] for x in snaps],
         "offender_type": offender_summary(last["offender_type"]),
         "register": register_summary(last["register"]),
         "helplines": helplines["helplines"], "helplines_last_verified": str(helplines["last_verified"]),
@@ -74,3 +77,30 @@ async def build_debrief(engine, sid, llm=None, helplines_path=None, today=None) 
     }
     engine.store.save_debrief(sid, out, engine.clock())
     return out
+
+
+async def build_summary(engine, pid, helplines_path=None, today=None) -> dict:
+    """Combined summary across a participant's finished conversations (pooled attacker turns)."""
+    cfg = engine.cfg
+    kw = {"max_age_days": cfg["limits"]["helplines_max_age_days"], "today": today}
+    if helplines_path:
+        kw["path"] = helplines_path
+    helplines = load_helplines(**kw)
+    hist, rows = [], []
+    for sess in engine.store.sessions_for(pid):
+        if sess["ended_at"] is None:
+            continue
+        att = [t for t in engine.store.turns(sess["sid"]) if t["role"] == "attacker"]
+        hist += [(t["primary_strategy"], t["secondary_strategy"]) for t in att]
+        snaps = engine.store.snapshots(sess["sid"])
+        last = snaps[-1] if snaps else {"offender_type": 0.0, "register": 0.0}
+        rows.append({"persona": engine.personas[sess["persona_id"]]["name"], "attacker_turns": len(att),
+                     "offender_value": round(last["offender_type"], 2), "register_value": round(last["register"], 2)})
+    exp = exposure(hist)
+    cards = [{"strategy": n, "description": DESCRIPTIONS[n], "primary_pct": exp[n]["primary_pct"],
+              "secondary_pct": exp[n]["secondary_pct"]} for n in C.STRATEGIES
+             if exp[n]["primary_pct"] or exp[n]["secondary_pct"]]
+    return {"pid": pid, "conversations": rows, "attacker_turns": len(hist), "cards": cards,
+            "note": "Pooled across your conversations: share of attacker messages whose intended strategy was each one.",
+            "helplines": helplines["helplines"], "helplines_last_verified": str(helplines["last_verified"]),
+            "wellbeing_note": cfg["study"]["wellbeing_note"], "researcher_contact": cfg["study"]["researcher_contact"]}

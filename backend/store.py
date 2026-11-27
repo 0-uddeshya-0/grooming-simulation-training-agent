@@ -35,6 +35,12 @@ class Store:
     def session(self, sid):
         return self.q("SELECT * FROM sessions WHERE sid=?", sid).fetchone()
 
+    def sessions_for(self, pid):
+        return [dict(r) for r in self.q("SELECT * FROM sessions WHERE pid=? ORDER BY started_at", pid)]
+
+    def open_sessions(self):
+        return [dict(r) for r in self.q("SELECT sid, started_at FROM sessions WHERE ended_at IS NULL")]
+
     def add_turn(self, sid, role, text, now, primary=None, secondary=None):
         idx = self.q("SELECT COUNT(*) c FROM turns WHERE sid=?", sid).fetchone()["c"]
         self.q("INSERT INTO turns (sid,idx,role,text,ts,primary_strategy,secondary_strategy) VALUES (?,?,?,?,?,?,?)",

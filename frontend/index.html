@@ -1,92 +1,37 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Training system study</title>
-<style>
-/* shadcn/ui-style tokens (zinc), plain CSS so no build step is needed */
-:root{--bg:#fafafa;--card:#fff;--fg:#09090b;--muted:#f4f4f5;--muted-fg:#52525b;--border:#e4e4e7;--primary:#18181b;--primary-fg:#fafafa;
---destructive:#dc2626;--ring:#a1a1aa;--accent:#2563eb;--radius:.6rem}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-.wrap{max-width:600px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column}
-.screen{display:none;padding:20px}.screen.on{display:block}#chat.on{display:flex;flex-direction:column;height:100vh;padding:0}
-h1{font-size:1.4rem;letter-spacing:-.02em;margin:.2em 0 .4em}h2{font-size:1.05rem;margin:1.4em 0 .5em}p{margin:.5em 0}
-.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin:12px 0;box-shadow:0 1px 2px #0000000d}
-.btn{font:inherit;font-weight:500;padding:.55rem 1rem;border-radius:calc(var(--radius) - 2px);border:1px solid transparent;background:var(--primary);color:var(--primary-fg);cursor:pointer}
-.btn:hover{opacity:.9}.btn:disabled{opacity:.5;cursor:not-allowed}.btn.outline{background:var(--card);color:var(--fg);border-color:var(--border)}
-.btn.destructive{background:var(--destructive);color:#fff}.btn.block{width:100%;text-align:left;margin:6px 0;display:flex;gap:12px;align-items:center}
-:focus-visible{outline:2px solid var(--ring);outline-offset:2px}
-input[type=text]{font:inherit;width:100%;padding:.55rem .75rem;border:1px solid var(--border);border-radius:calc(var(--radius) - 2px);background:#fff}
-label.check{display:flex;gap:10px;align-items:flex-start;margin:10px 0}label.check input{margin-top:4px;width:16px;height:16px}
-.err{color:var(--destructive);min-height:1.4em}.small{font-size:.8rem;color:var(--muted-fg)}
-.avatar{width:36px;height:36px;border-radius:50%;background:var(--muted);color:var(--fg);display:grid;place-items:center;font-weight:600;flex:none}
-#top{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--card);border-bottom:1px solid var(--border)}
-#top .nm{flex:1;line-height:1.2}#top .nm small{display:block;color:var(--muted-fg);font-size:.75rem}
-.pill{font-variant-numeric:tabular-nums;background:var(--muted);border-radius:999px;padding:.2rem .7rem;font-size:.85rem}
-#msgs{flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:6px;background:var(--bg)}
-.m{max-width:80%;padding:8px 12px;border-radius:16px;word-wrap:break-word;white-space:pre-wrap}
-.me{align-self:flex-end;background:var(--primary);color:var(--primary-fg);border-bottom-right-radius:4px}
-.them{align-self:flex-start;background:var(--muted);border-bottom-left-radius:4px}
-.ctx{align-self:center;text-align:center;font-size:.8rem;color:var(--muted-fg);background:var(--card);border:1px solid var(--border);padding:6px 12px;border-radius:999px;max-width:92%}
-.t{font-size:.68rem;opacity:.7;margin-top:2px;text-align:right}
-.dots span{display:inline-block;width:6px;height:6px;margin:0 2px;border-radius:50%;background:var(--muted-fg);animation:b 1.2s infinite}
-.dots span:nth-child(2){animation-delay:.15s}.dots span:nth-child(3){animation-delay:.3s}
-@keyframes b{0%,60%,100%{opacity:.3}30%{opacity:1}}@media(prefers-reduced-motion:reduce){.dots span{animation:none}}
-#bar{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--border);background:var(--card)}
-.bar{height:8px;background:var(--muted);border-radius:99px;overflow:hidden;margin:8px 0}.bar i{display:block;height:100%;background:var(--accent)}
-.badge{display:inline-block;background:var(--muted);border-radius:999px;padding:.1rem .6rem;font-size:.8rem;font-weight:600;margin-left:6px}
-.support{border-color:#fca5a5;background:#fef2f2}.ex{margin:.4rem 0 0;padding-left:1.1rem;color:var(--muted-fg)}
-ul.lines{list-style:none;padding:0;margin:.5rem 0}ul.lines li{padding:.5rem 0;border-top:1px solid var(--border)}ul.lines li:first-child{border-top:0}
-</style></head><body><div class="wrap">
-<main id="intro" class="screen on"><h1>Study: a training system that protects against manipulation</h1>
-<div class="card"><p>You will chat with simulated contacts. You may withdraw at any time, for any reason, and ask for your data to be deleted. Everything runs locally on this computer.</p>
-<p>A <b>Stop</b> button is always visible. A researcher is present or reachable.</p></div>
-<label class="check"><input type="checkbox" id="c1"><span>I have read the information and consent to take part.</span></label>
-<label class="check"><input type="checkbox" id="c2"><span>I confirm that I am 18 or older.</span></label>
-<p><label for="pid">Participant ID (given by the researcher)</label></p><input type="text" id="pid" autocomplete="off">
-<p><button class="btn" id="go">Continue</button></p><p class="err" id="err" role="alert"></p></main>
-<main id="pick" class="screen"><h1>Choose who to chat with</h1><p class="small">You can talk to more than one person, one chat each.</p><div id="plist"></div></main>
-<main id="chat" class="screen">
-<header id="top"><div class="avatar" id="av"></div><div class="nm"><b id="who"></b><small>messaging app</small></div>
-<span class="pill" id="timer" role="timer" aria-label="Time remaining"></span><button class="btn destructive" id="stop">Stop</button></header>
-<div id="msgs" role="log" aria-live="polite" aria-label="Conversation"></div>
-<form id="bar"><input type="text" id="inp" placeholder="Type a message" autocomplete="off" aria-label="Message"><button class="btn" id="send" type="submit">Send</button></form></main>
-<main id="deb" class="screen"></main></div>
-<script>
-const $=id=>document.getElementById(id);let S=null,pid="",left=0,tick=null,busy=false;
-const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const show=id=>["intro","pick","chat","deb"].forEach(x=>$(x).classList.toggle("on",x===id));
-const post=(p,b)=>fetch(p,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b||{})});
-$("go").onclick=async()=>{pid=$("pid").value.trim();if(!$("c1").checked||!$("c2").checked||!pid){$("err").textContent="Please tick both boxes and enter your participant ID.";return}
- $("err").textContent="";const ps=await (await fetch("/api/personas")).json();$("plist").innerHTML="";
- ps.forEach(p=>{const b=document.createElement("button");b.className="btn outline block";b.innerHTML=`<span class="avatar">${esc(p.name[0])}</span><span><b>${esc(p.name)}</b><br><small class="small">Start a chat</small></span>`;b.onclick=()=>start(p);$("plist").appendChild(b)});show("pick")};
-async function start(p){const r=await post("/api/session",{participant_id:pid,persona_id:p.id,consent:true,age_confirmed:true});
- if(!r.ok){$("err").textContent="Could not start the session. Tell the researcher.";show("intro");return}
- S=await r.json();left=S.limit_seconds;$("who").textContent=p.name;$("av").textContent=p.name[0];$("msgs").innerHTML="";add("ctx",S.context_line);show("chat");$("inp").focus();
- clearInterval(tick);paint();tick=setInterval(()=>{left=Math.max(0,left-1);paint();if(left<=0)end()},1000)}
-const paint=()=>$("timer").textContent=Math.floor(left/60)+":"+String(left%60).padStart(2,"0");
-function add(c,t,html){const d=document.createElement("div");d.className="m "+c;if(html)d.innerHTML=html;else d.textContent=t;
- if(c==="me"||c==="them"){const s=document.createElement("div");s.className="t";s.textContent=new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});d.appendChild(s)}$("msgs").appendChild(d);$("msgs").scrollTop=1e9;return d}
-const typing=()=>add("them","",'<span class="dots" aria-label="typing"><span></span><span></span><span></span></span>');
-const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-$("bar").onsubmit=async e=>{e.preventDefault();const t=$("inp").value.trim();if(!t||busy||!S)return;$("inp").value="";add("me",t);busy=true;$("send").disabled=true;
- const sid=S.sid,ty=typing();let r;
- try{const res=await post("/api/session/"+sid+"/message",{text:t});if(!res.ok)throw 0;r=await res.json()}
- catch{ty.remove();add("ctx","Connection problem with the chat service. Please tell the researcher. You can still press Stop.");busy=false;$("send").disabled=false;return}
- ty.remove();if(r.ended){return finish(sid,r.support)}
- for(let i=0;i<r.messages.length;i++){const m=r.messages[i],ty2=typing();await sleep(m.delay_ms);ty2.remove();if(!S)return;add("them",m.text)}
- busy=false;$("send").disabled=false;$("inp").focus()};
-async function end(){if(!S)return;const sid=S.sid;await post("/api/session/"+sid+"/stop");finish(sid,false)}
-async function finish(sid,support){clearInterval(tick);S=null;busy=false;$("send").disabled=false;
- const r=await fetch("/api/session/"+sid+"/debrief");const d=await r.json();render(d,support,r.ok)}
-const lines=d=>`<ul class="lines">${d.helplines.map(l=>`<li><b>${esc(l.name)}</b><br>${esc(l.number)} <span class="small">· ${esc(l.hours)}</span></li>`).join("")}</ul><p class="small">Helplines last verified ${esc(d.helplines_last_verified)}</p>`;
-function render(d,support,ok){let h="";
- if(!ok){h=`<h1>Session ended</h1><p>The debrief could not be built: ${esc(d.detail||"unknown error")}. Please tell the researcher.</p>`}
- else{
-  if(support)h+=`<div class="card support"><b>This conversation has ended.</b><p>${esc(d.wellbeing_note)}</p>${lines(d)}</div>`;
-  h+=`<h1>Debrief</h1><p>This was a simulation of an online manipulator. Here is what you were exposed to.</p>`;
-  d.cards.forEach(c=>{h+=`<div class="card"><b>${esc(c.strategy)}</b><span class="badge">${c.primary_pct}%</span><div class="bar"><i style="width:${c.primary_pct}%"></i></div><p>${esc(c.description)}</p>${c.examples.length?`<p class="small">From your chat:</p><ul class="ex">${c.examples.map(e=>`<li>${esc(e)}</li>`).join("")}</ul>`:""}</div>`});
-  h+=`<div class="card"><p>${esc(d.offender_type)}</p><p>${esc(d.register)}</p><p class="small">${esc(d.note)}</p></div>`;
-  if(!support)h+=`<h2>Support</h2><div class="card">${esc(d.wellbeing_note)}${lines(d)}</div>`;
-  h+=`<p>Researcher: ${esc(d.researcher_contact)}</p>`}
- h+=`<p><button class="btn outline" id="again">Talk to another persona</button></p>`;$("deb").innerHTML=h;show("deb");window.scrollTo(0,0);$("again").onclick=()=>show("pick")}
-$("stop").onclick=end;
-</script></body></html>
+<title>Training system study</title><link rel="stylesheet" href="/static/styles.css"></head>
+<body>
+<a class="skip" href="#pane">Skip to conversation</a>
+
+<main id="gate" class="gate"><div class="clay gate-card">
+  <div class="steps" aria-hidden="true"><i class="on"></i><i id="st2"></i></div>
+  <section id="g1">
+    <h1>A training system that protects against manipulation</h1>
+    <p class="muted">You will chat with simulated contacts, much like on a messaging app. You can withdraw at any time without giving a reason, and ask for your data to be deleted. Everything runs on this computer; nothing is sent anywhere.</p>
+    <p class="muted">A <b>Stop</b> button is always in view. A researcher is present or reachable.</p>
+    <label class="check"><input type="checkbox" id="c1"><span>I have read the information and I agree to take part.</span></label>
+    <label class="check"><input type="checkbox" id="c2"><span>I confirm that I am 18 or older.</span></label>
+    <p class="err" id="err1" role="alert"></p>
+    <p><button class="btn primary" id="next1">Continue</button></p>
+  </section>
+  <section id="g2" hidden>
+    <h1>Your participant ID</h1>
+    <p class="muted">The researcher will give you an ID. We never ask for your name.</p>
+    <p><label class="small muted" for="pid">Participant ID</label></p>
+    <input class="field" id="pid" autocomplete="off" spellcheck="false" maxlength="40">
+    <p class="err" id="err" role="alert"></p>
+    <p><button class="btn" id="back1">Back</button> <button class="btn primary" id="go">Begin</button></p>
+  </section>
+</div></main>
+
+<div id="stage" hidden>
+  <aside id="side" class="clay" aria-label="Conversations">
+    <header><h2>Messages</h2><span class="chip" id="pidchip"></span></header>
+    <nav id="threads" aria-label="People you can chat with"></nav>
+    <footer><button class="btn" id="sumbtn" disabled>Overall summary</button></footer>
+  </aside>
+  <section id="pane" class="clay" tabindex="-1"></section>
+</div>
+<script src="/static/app.js"></script>
+</body></html>

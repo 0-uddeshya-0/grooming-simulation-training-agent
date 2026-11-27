@@ -48,6 +48,21 @@ class Engine:
         s = self.store.session(sid)
         return {"ended": True, "reason": s["end_reason"], "support": s["end_reason"] in SUPPORT_REASONS, "messages": []}
 
+    def enforce_time(self, sid) -> bool:
+        """End the session if its time is up (idempotent). Returns True if it is ended."""
+        s = self.store.session(sid)
+        if s["ended_at"] is None and self.remaining(sid) <= 0:
+            self.end(sid, "timeout")
+        return self.store.session(sid)["ended_at"] is not None
+
+    def sweep(self) -> int:
+        """Server-side clock: end every expired open session, no client needed."""
+        n = 0
+        for r in self.store.open_sessions():
+            if self.clock() - r["started_at"] >= self.limit_s:
+                self.end(r["sid"], "timeout"); n += 1
+        return n
+
     def stop(self, sid) -> dict:
         """Never touches the LLM: always instant."""
         return self.end(sid, "stop")

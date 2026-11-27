@@ -7,8 +7,8 @@ Browser UI (chat, timer, Stop) <-> FastAPI (127.0.0.1) <-> llama-server (GGUF, 1
                                       |
         Director/State machine -> Deterministic safeguards -> Debrief generator
 ```
-- **Frontend**: static prebuilt files, no Node needed. Chat UI, typing indicator, delay proportional to message length, timer from server clock, always-visible Stop.
-- **Backend (FastAPI)**: sessions, turn pipeline, server-side 45-min clock, kill-switch endpoint, config validation at startup, preflight checks (RAM, model, binary, helplines age).
+- **Frontend**: static prebuilt files (index.html, styles.css, app.js), no Node needed. Sidebar of conversations + chat/debrief/summary pane, typing indicator, delay proportional to message length, always-visible Stop, no timer shown; quiet status polling detects server-side time-outs. See UX_DESIGN.md.
+- **Backend (FastAPI)**: sessions, turn pipeline, server-side 45-min clock (background sweeper ends idle sessions), kill-switch endpoint, config validation at startup, preflight checks (RAM, model, binary, helplines age).
 - **Turn pipeline**: user text -> stop/distress rules -> signal scoring -> director update -> prompt assembly -> LLM -> output filter (regenerate on hit; end after N) -> anti-repetition n-gram check (<=2 retries) -> persist (turn + tags + state snapshot) -> deliver with simulated delay.
 - **Safeguards module**: pure functions, no model calls; unit-tested; the actual guarantee for HR1/HR2/HR9.
 - **Debrief**: after the session, reads structured logs; computes percentages in code; the LLM (same GGUF, different prompt, loaded after chat ends; never two models at once) only phrases explanations and paraphrases examples from logged turns. Build fails if helplines are stale.

@@ -50,3 +50,25 @@ def test_llm_outage_is_503_and_session_stays_open(tmp_path):
     assert c.post(f"/api/session/{sid}/message", json={"text": "hi"}).status_code == 503
     assert not c.get(f"/api/session/{sid}").json()["ended"]
     assert c.post(f"/api/session/{sid}/stop").json()["ended"]
+
+
+def test_summary_pools_conversations_and_numeric_debrief(make_engine, tmp_path):
+    from backend.debrief import build_summary
+    e = make_engine()
+    for persona in ("alex", "sam"):
+        sid = e.start_session("PS", persona, True, True)["sid"]
+        for _ in range(3): asyncio.run(e.handle_message(sid, "hello"))
+        e.stop(sid)
+    h = fresh_helplines(tmp_path)
+    d = asyncio.run(build_debrief(e, sid, None, h))
+    assert 0 <= d["offender_value"] <= 1 and 0 <= d["register_value"] <= 1 and d["stages"] and d["persona_id"] == "sam"
+    s = asyncio.run(build_summary(e, "PS", h))
+    assert [c["persona"] for c in s["conversations"]] == ["Alex", "Sam"] and s["attacker_turns"] == 6
+    assert sum(c["primary_pct"] for c in s["cards"]) == pytest.approx(100, abs=0.5)
+
+
+def test_personas_endpoint_lists_several_with_age(tmp_path):
+    c = TestClient(create_app(llm=MockLLM(), db_path=tmp_path / "p.db", check_helplines=False))
+    ps = c.get("/api/personas").json()
+    assert {p["id"] for p in ps} >= {"alex", "sam", "jordan"} and all(p["age"] >= 19 for p in ps)
+    assert c.get("/api/participant/NOPE/summary").status_code == 409

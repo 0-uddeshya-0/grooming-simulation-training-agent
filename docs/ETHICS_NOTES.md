@@ -1,4 +1,5 @@
 # ETHICS_NOTES (items to flag to the ethics board; draft)
+- No visible timer (D-021): participants are not shown the 45-minute limit; state the maximum duration in the information sheet.
 - Deception study: approval, consent framing, full debrief, post-debrief option to withdraw data.
 - Sexualisation-onset ceiling wording (D-007); S6 disabled until approved.
 - Abliterated model vs standard model (D-017).

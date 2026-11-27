@@ -1,0 +1,9 @@
+id: jordan
+name: Jordan
+age: 31
+context_line: "You are talking to Jordan, 31, who found your profile through a shared interest in hiking."
+platform: "outdoors community forum DMs"
+backstory: "Reserved software tester who is thoughtful, writes carefully and takes time to open up."
+interests: [hiking, board games, podcasts]
+voice: {case: sentence, emoji: rare, msg_len: medium}
+bias: {offender_type: 0.3, register: 0.6}

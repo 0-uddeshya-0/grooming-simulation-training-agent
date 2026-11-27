@@ -92,3 +92,23 @@ def test_delete_participant(make_engine):
     e = make_engine(); sid = start(e); run(e.handle_message(sid, "hello"))
     assert e.store.delete_participant("P01") == 1
     assert e.store.turns(sid) == [] and e.store.session(sid) is None
+
+
+def test_idle_session_times_out_server_side(make_engine, clock):
+    e = make_engine(); sid = start(e)
+    assert e.sweep() == 0 and e.store.session(sid)["ended_at"] is None
+    clock.t += 45 * 60 + 1
+    assert e.sweep() == 1
+    s = e.store.session(sid); assert s["end_reason"] == "timeout" and s["ended_at"] is not None
+    assert e.sweep() == 0                       # idempotent
+
+
+def test_status_endpoint_enforces_time(tmp_path):
+    from fastapi.testclient import TestClient
+    from backend.app import create_app
+    from backend.config import load_app
+    cfg = load_app(); cfg["limits"]["max_session_seconds"] = 0
+    c = TestClient(create_app(cfg=cfg, llm=MockLLM(), db_path=tmp_path / "t.db", check_helplines=False))
+    sid = c.post("/api/session", json={"participant_id": "P", "persona_id": "alex", "consent": True, "age_confirmed": True}).json()["sid"]
+    s = c.get(f"/api/session/{sid}").json()
+    assert s["ended"] and s["reason"] == "timeout"
