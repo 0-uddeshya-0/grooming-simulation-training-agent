@@ -27,7 +27,7 @@ register: step +/-0.05. Resistance increases control (pushiness); receptive user
 Each attacker turn logs primary tag = stage's strategy, optional secondary (e.g. S3 turn also rapport). Exposure % per strategy = tagged turns / total attacker turns (primary and secondary counted, reported separately).
 
 ## Terminal states
-Stop button/"STOP", 45-min timer, distress interrupt, repeated filter hits -> session ends, no persona message, debrief. All logged with reason.
+Stop button/"STOP", 45-min per-conversation timer, distress interrupt, repeated filter hits -> session ends, no persona message, debrief. All logged with reason.
 
 ## Test obligations
 Receptive/neutral/resistant scripted users: assert adjacent-only transitions, min dwell respected, regression under resistance, scalar divergence, S6 never reached for resistant profile.
