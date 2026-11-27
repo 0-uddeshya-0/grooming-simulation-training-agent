@@ -1,0 +1,11 @@
+# ETHICS_NOTES (items to flag to the ethics board; draft)
+- Deception study: approval, consent framing, full debrief, post-debrief option to withdraw data.
+- Sexualisation-onset ceiling wording (D-007); S6 disabled until approved.
+- Abliterated model vs standard model (D-017).
+- Special-category data (sexual life, health, distress) in free text; pseudonymous is not anonymous; legal basis, DPIA, retention, transcript purge after debrief; deletion must cover SQLite WAL, backups, exports; full-disk encryption on the laptop.
+- Age gate is self-declared: verify via recruitment; minor/age-contradiction handling is deterministic (D-010).
+- Screening/warning for participants with abuse history; duty of care on real-abuse disclosures; researcher present or reachable.
+- Student-supervisor power relations in recruitment.
+- Helpline list must be re-verified (D-006/D-014); review youth line for an 18+ study.
+- Third-party model licences (Llama 3.1 Community, Qwen, Gemma) cited in the thesis.
+- Misuse: private repo, access-controlled release, use-restricted licence (D-008, D-018).

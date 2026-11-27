@@ -6,14 +6,16 @@ model:
   chat_template_no_think: true
 llama_server: {host: 127.0.0.1, port: 8081, ctx: 8192, binary: llama-server}
 sampling: {temperature: 0.8, min_p: 0.05, repeat_penalty: 1.1, presence_penalty: 0.2, max_tokens: 120}
+# NOTE (D-009): safety constants (min age 19, ceiling, 45-min cap, STOP triggers, allow_onset)
+# live in backend/constants.py. Config may only TIGHTEN them (e.g. min(cfg,45)); it can never loosen.
 limits:
-  max_session_minutes: 45            # enforced server-side
+  max_session_minutes: 45            # tighten-only
   min_free_ram_gb: 6
   helplines_max_age_days: 90
 safeguards:
   min_persona_age: 19
-  content_ceiling: non_explicit_onset   # PENDING ETHICS BOARD; encoded as constant, see ETHICS_NOTES
+  allow_onset: false                    # S6 disabled until ethics wording (D-007)
   max_filter_regenerations: 3
   antirepeat_max_retries: 2
-stop_text_triggers: ["STOP"]
+stop_text_triggers: ["STOP", "STOPP", "ABBRUCH"]   # whole-message, case-insensitive only
 network: {allow_outbound: false}
