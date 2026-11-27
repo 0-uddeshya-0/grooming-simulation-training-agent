@@ -1,0 +1,14 @@
+models/*
+!models/README.md
+!models/.gitkeep
+data/*
+!data/.gitkeep
+*.db
+*.sqlite
+*.gguf
+logs/
+.env
+__pycache__/
+node_modules/
+.venv/
+.pytest_cache/

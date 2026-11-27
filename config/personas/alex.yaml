@@ -1,0 +1,9 @@
+id: alex
+name: Alex
+age: 24
+context_line: "You are talking to Alex, 24, who messaged you on a social app after liking one of your posts."
+platform: "photo-sharing social app DMs"
+backstory: "Friendly freelance designer who recently moved cities and says they are looking for people to chat with."
+interests: [music, gaming, street photography, late-night food]
+voice: {case: lowercase, emoji: occasional, msg_len: short}
+bias: {offender_type: 0.4, register: 0.3}

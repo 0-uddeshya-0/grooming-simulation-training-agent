@@ -1,0 +1,19 @@
+model:
+  candidate: huihui-qwen3-8b-abliterated-v2   # provisional; decided only after bake-off (DECISIONS D-004)
+  quant: Q4_K_M
+  gguf_repo: null      # filled after card/licence verification
+  gguf_file: null
+  chat_template_no_think: true
+llama_server: {host: 127.0.0.1, port: 8081, ctx: 8192, binary: llama-server}
+sampling: {temperature: 0.8, min_p: 0.05, repeat_penalty: 1.1, presence_penalty: 0.2, max_tokens: 120}
+limits:
+  max_session_minutes: 45            # enforced server-side
+  min_free_ram_gb: 6
+  helplines_max_age_days: 90
+safeguards:
+  min_persona_age: 19
+  content_ceiling: non_explicit_onset   # PENDING ETHICS BOARD; encoded as constant, see ETHICS_NOTES
+  max_filter_regenerations: 3
+  antirepeat_max_retries: 2
+stop_text_triggers: ["STOP"]
+network: {allow_outbound: false}

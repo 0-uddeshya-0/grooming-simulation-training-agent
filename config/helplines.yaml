@@ -1,0 +1,11 @@
+# Re-verify EVERY number before any participant session. The debrief build fails
+# if last_verified is older than max_age_days (see config/app.yaml).
+last_verified: 2025-11-25   # as supplied in the brief; STALE as of 2026-11-27 -> must be re-verified
+region: Germany (Neu-Ulm / Bavaria)
+helplines:
+  - {name: "Hilfe-Telefon Sexueller Missbrauch", number: "0800 22 55 530", hours: "Mon, Wed, Fri 9:00-14:00; Tue, Thu 15:00-20:00"}
+  - {name: "TelefonSeelsorge", number: "0800 111 0 111 / 0800 111 0 222 / 116 123", hours: "24/7"}
+  - {name: "Nummer gegen Kummer (young people)", number: "116 111", hours: "Mon-Sat 14:00-20:00"}
+  - {name: "Hilfetelefon Gewalt gegen Frauen", number: "116 016", hours: "see service"}
+  - {name: "Hilfetelefon Gewalt an Maennern", number: "0800 12 39 900", hours: "see service"}
+  - {name: "Krisendienste Bayern", number: "0800 655 3000", hours: "covers Neu-Ulm"}
