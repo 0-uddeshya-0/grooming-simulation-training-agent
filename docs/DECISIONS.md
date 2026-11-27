@@ -24,3 +24,9 @@
 | D-022 | Claymorphism laptop-first UI: sidebar of conversations + pane; plain CSS/JS, no build step; see UX_DESIGN.md. Two more adult personas (Sam 27, Jordan 31) added so multi-thread is real | single-thread phone-style UI | accepted |
 | D-023 | Bug found by browser test: idle sessions never ended. Fixed with sweeper + enforce_time on status | lazy check only on message | fixed |
 | D-020 | Model-server outage returns 503 and keeps the session open; UI shows a friendly message and Stop still works. Distress/under-18 endings show the support card first | silent 500 | accepted |
+| D-024 | Ethics-board ceiling adopted (onset level; prohibited list incl. money, identifying data, meetings, pressure, self-harm). Encoded in filters + `CEILING_ENFORCED` constant; stage 6 built with extra gating (>=18 turns, engagement, disclosures, 25% share cap) after a test showed short "sure/cool" replies could reach onset | keep S6 unbuilt | accepted (supersedes D-012) |
+| D-025 | Study/helpline config adopted verbatim from researcher; helplines `max_age_days: 60` lives in helplines.yaml; supervisor angle brackets stripped | app.yaml-only threshold | accepted |
+| D-026 | Participant-facing DELETE endpoint removed; deletion by email to researcher -> viewer button or `scripts/delete_participant.py` | open localhost delete | accepted |
+| D-027 | Researcher log viewer: separate app/port/token, UI outside frontend/, tag-validity review table, CSV export, deletion | route inside participant app | accepted |
+| D-028 | One-command launcher (`scripts/launch.py`) waits for model health, `--cpu` fallback, `<think>` stripping, `--jinja` for chat_template_kwargs | separate shell scripts per OS | accepted |
+| D-029 | Model repo `mradermacher/Huihui-Qwen3-8B-abliterated-v2-GGUF` is UNVERIFIED (no HF access when written); download script reads the HF API, picks the quant, verifies sha256 and offers `--search` | hard-coding a filename | open until first download |

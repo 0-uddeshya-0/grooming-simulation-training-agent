@@ -1,26 +1,28 @@
 model:
   candidate: huihui-qwen3-8b-abliterated-v2   # provisional; decided only after bake-off (DECISIONS D-004)
   quant: Q4_K_M
-  gguf_repo: null      # filled after card/licence verification
-  gguf_file: null
+  gguf_repo: mradermacher/Huihui-Qwen3-8B-abliterated-v2-GGUF   # UNVERIFIED name (no HF access when written). If it fails: python scripts/download_model.py --search "Huihui Qwen3 8B abliterated GGUF"
+  gguf_file: null          # auto-picked from the quant above
   chat_template_no_think: true
-llama_server: {host: 127.0.0.1, port: 8081, ctx: 8192, binary: llama-server}
+llama_server: {host: 127.0.0.1, port: 8081, ctx: 8192, binary: llama-server, gpu_layers: 99, extra_args: []}
 sampling: {temperature: 0.8, min_p: 0.05, repeat_penalty: 1.1, presence_penalty: 0.2, max_tokens: 120}
 # NOTE (D-009): safety constants (min age 19, ceiling, 45-min cap, STOP triggers, allow_onset)
 # live in backend/constants.py. Config may only TIGHTEN them (e.g. min(cfg,45)); it can never loosen.
 limits:
-  max_session_minutes: 45            # tighten-only
-  min_free_ram_gb: 6
-  helplines_max_age_days: 90
+  min_free_ram_gb: 6                 # (the 45-minute cap lives in study.max_session_minutes; config can only tighten it)
 safeguards:
   min_persona_age: 19
-  content_ceiling: no_explicit_sexual_content   # constant; see D-007
-  allow_onset: false                    # S6 disabled until ethics wording (D-007)
+  allow_onset: true      # stage 6 (non-explicit onset). Config can only turn it OFF; the ceiling filter is always on
   max_filter_regenerations: 3
   antirepeat_max_retries: 2
 stop_text_triggers: ["STOP", "STOPP", "ABBRUCH"]   # whole-message, case-insensitive only
 network: {allow_outbound: false}
 study:
+  title: "Training system that protects against manipulation"
+  researcher_name: "Isha Nikam"
+  researcher_contact: "isha.nikam@student.hnu.de"
+  supervisor_contact: "marten.risius@hnu.de"
+  data_deletion_note: "Email the contact above with your participant ID to have your data deleted."
+  max_session_minutes: 45            # per persona conversation, enforced server-side; config can only tighten (hard cap 45)
   consent_version: v1
-  researcher_contact: "REPLACE: researcher name and email"   # shown in debrief
   wellbeing_note: "If anything in this conversation left you unsettled, please talk to the researcher present or use a support line below."

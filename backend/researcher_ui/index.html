@@ -1,0 +1,42 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Researcher viewer</title>
+<style>
+:root{--bg:#e7e1d8;--s:#efe9e0;--r:#f6f1ea;--ink:#2a2723;--ink2:#645e55;--a:#2c6f67;--c:#c9573e;--line:#d8d0c3}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 Inter,system-ui,"Segoe UI",sans-serif}
+#app{display:grid;grid-template-columns:380px 1fr;height:100vh;gap:16px;padding:16px}
+.p{background:var(--s);border-radius:20px;box-shadow:8px 8px 18px rgba(142,128,108,.35),-6px -6px 14px rgba(255,255,255,.9);overflow:auto;padding:16px}
+h2{margin:0 0 8px;font-size:1.05rem}h3{margin:16px 0 6px;font-size:.95rem}.m{color:var(--ink2)}.sm{font-size:.8rem}
+button{font:inherit;border:0;border-radius:999px;padding:.4rem .9rem;background:var(--r);cursor:pointer;box-shadow:3px 3px 7px rgba(142,128,108,.35),-3px -3px 7px #fff}
+button.pri{background:var(--a);color:#fff}button.dng{background:var(--c);color:#fff}
+.s{display:block;width:100%;text-align:left;background:var(--r);border-radius:14px;padding:10px 12px;margin:8px 0;box-shadow:3px 3px 7px rgba(142,128,108,.3),-3px -3px 7px #fff}
+.s.on{box-shadow:inset 3px 3px 7px rgba(142,128,108,.3),inset -3px -3px 7px #fff}
+.b{display:inline-block;border-radius:99px;padding:1px 8px;font-size:.72rem;font-weight:700;background:#d3e4e0;color:var(--a)}.b.w{background:#f3d8cf;color:var(--c)}
+.t{margin:8px 0;padding:8px 12px;border-radius:12px;background:var(--r);max-width:80%}.t.u{margin-left:auto;background:#d3e4e0}
+.tags{margin-top:4px;font-size:.75rem}.ev{font-family:ui-monospace,Consolas,monospace;font-size:.75rem;background:var(--r);border-radius:10px;padding:6px 9px;margin:4px 0;white-space:pre-wrap;word-break:break-word}
+.bar{height:10px;border-radius:9px;background:var(--r);overflow:hidden;margin:2px 0 6px}.bar i{display:block;height:100%;background:var(--a)}
+input{font:inherit;padding:.4rem .8rem;border:0;border-radius:99px;width:100%;background:var(--r);box-shadow:inset 3px 3px 6px rgba(142,128,108,.3)}
+</style></head><body><div id="app"><div class="p"><h2>Sessions</h2><input id="q" placeholder="Filter by participant or persona" aria-label="Filter">
+<p><button id="csv">Export CSV</button></p><div id="list"></div></div><div class="p" id="detail"><p class="m">Select a session.</p></div></div>
+<script>
+const $=id=>document.getElementById(id),esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt=t=>t?new Date(t*1000).toLocaleString():"-";let S=[],cur=null;
+async function load(){S=await (await fetch("/api/r/sessions")).json();draw()}
+function draw(){const q=$("q").value.toLowerCase();$("list").innerHTML=S.filter(s=>(s.pid+s.persona).toLowerCase().includes(q)).map(s=>
+ `<button class="s ${cur===s.sid?"on":""}" data-s="${s.sid}"><b>${esc(s.pid)}</b> · ${esc(s.persona)}<br><span class="m sm">${fmt(s.started_at)}</span><br>
+ <span class="b ${["distress","user_minor","filter_exhausted","limit_pushes"].includes(s.end_reason)?"w":""}">${esc(s.end_reason||"running")}</span>
+ <span class="m sm">${s.n_user} / ${s.n_attacker} msgs${s.n_filter_hits?` · ${s.n_filter_hits} blocked`:""}${s.tag_accuracy!=null?` · tags ${s.tag_accuracy}% (${s.n_reviewed})`:""}</span></button>`).join("")||'<p class="m">No sessions yet.</p>';
+ document.querySelectorAll("[data-s]").forEach(b=>b.onclick=()=>open(b.dataset.s))}
+async function open(sid){cur=sid;draw();const d=await (await fetch("/api/r/session/"+sid)).json(),s=d.session;
+ let h=`<h2>${esc(s.pid)} · ${esc(s.persona)}</h2><p class="m sm">session ${s.sid} · started ${fmt(s.started_at)} · ended ${fmt(s.ended_at)} · reason <b>${esc(s.end_reason||"running")}</b> · config ${esc(s.config_hash)}</p>
+ <p><button class="dng" id="del">Delete all data for ${esc(s.pid)}</button></p><h3>Intended exposure (attacker turns)</h3>`;
+ for(const [k,v] of Object.entries(d.exposure))if(v.primary_pct||v.secondary_pct)h+=`<div class="sm">${esc(k)} <b>${v.primary_pct}%</b>${v.secondary_pct?` (+${v.secondary_pct}% secondary)`:""}</div><div class="bar"><i style="width:${v.primary_pct}%"></i></div>`;
+ const last=d.snapshots[d.snapshots.length-1];if(last)h+=`<p class="sm m">final stage ${last.stage} · offender type ${last.offender_type.toFixed(2)} · register ${last.register.toFixed(2)} · stages: ${d.snapshots.map(x=>x.stage).join("")}</p>`;
+ h+=`<h3>Tag validity check <span class="m sm">${d.reviewed} reviewed, ${d.agree} agree${d.reviewed?` (${Math.round(100*d.agree/d.reviewed)}%)`:""}</span></h3><p class="m sm">Mark whether each attacker message really shows the intended strategy.</p><h3>Transcript</h3>`;
+ for(const t of d.turns){if(t.role==="user")h+=`<div class="t u">${esc(t.text)}</div>`;else h+=`<div class="t">${esc(t.text)}<div class="tags"><span class="b">${esc(t.primary)}</span>${t.secondary?` <span class="b">${esc(t.secondary)}</span>`:""}
+  <button data-r="1" data-i="${t.idx}" ${t.review===1?'class="pri"':""}>tag matches</button> <button data-r="0" data-i="${t.idx}" ${t.review===0?'class="dng"':""}>does not</button></div></div>`}
+ h+=`<h3>Events</h3>`+(d.events.map(e=>`<div class="ev">${fmt(e.ts)} · ${esc(e.kind)}${e.detail?" · "+esc(e.detail):""}</div>`).join("")||'<p class="m sm">None.</p>');
+ $("detail").innerHTML=h;
+ document.querySelectorAll("[data-r]").forEach(b=>b.onclick=async()=>{await fetch("/api/r/review",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sid,idx:+b.dataset.i,agree:b.dataset.r==="1"})});await load();open(sid)});
+ $("del").onclick=async()=>{if(confirm("Permanently delete ALL data for participant "+s.pid+"?")){await fetch("/api/r/participant/"+encodeURIComponent(s.pid),{method:"DELETE"});cur=null;$("detail").innerHTML='<p class="m">Deleted.</p>';load()}}}
+$("q").oninput=draw;$("csv").onclick=()=>location.href="/api/r/export.csv";load();
+</script></body></html>

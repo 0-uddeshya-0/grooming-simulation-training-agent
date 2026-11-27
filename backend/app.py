@@ -1,6 +1,7 @@
 """FastAPI app. Binds to localhost; static frontend; no outbound calls."""
 import asyncio
 import os
+from pathlib import Path
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
@@ -28,9 +29,11 @@ def create_app(cfg=None, llm=None, db_path=None, check_helplines=True) -> FastAP
     cfg = cfg or load_app()
     personas = load_personas()
     if check_helplines:
-        load_helplines(max_age_days=cfg["limits"]["helplines_max_age_days"])   # preflight: fail early
+        load_helplines()   # preflight: fail early
     llm = llm or (MockLLM() if os.environ.get("SIM_MOCK_LLM") == "1" else LlamaServer(cfg))
-    store = Store(db_path or ROOT / "data" / "study.db")
+    db_path = Path(db_path or ROOT / "data" / "study.db")
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    store = Store(db_path)
     eng = Engine(cfg, personas, store, llm)
     @asynccontextmanager
     async def lifespan(_):
@@ -105,9 +108,24 @@ def create_app(cfg=None, llm=None, db_path=None, check_helplines=True) -> FastAP
         except HelplinesStale as e:
             raise HTTPException(503, str(e))
 
-    @app.delete("/api/participant/{pid}")
-    def delete(pid: str):
-        return {"deleted_sessions": store.delete_participant(pid)}
+    @app.get("/api/study")
+    def study():
+        st = cfg["study"]
+        return {"title": st["title"], "researcher_name": st["researcher_name"], "researcher_contact": st["researcher_contact"],
+                "max_session_minutes": cfg["limits"]["max_session_seconds"] // 60}
+
+    @app.get("/api/health")
+    async def health():
+        if isinstance(llm, MockLLM):
+            return {"model_ready": True}
+        try:
+            import httpx
+            ls = cfg["llama_server"]
+            async with httpx.AsyncClient(timeout=2) as c:
+                r = await c.get(f"http://{ls['host']}:{ls['port']}/health")
+            return {"model_ready": r.status_code == 200}
+        except Exception:
+            return {"model_ready": False}
 
     fe = ROOT / "frontend"
     app.mount("/static", StaticFiles(directory=fe), name="static")

@@ -18,11 +18,26 @@ def ram_gb() -> float:
         return 0.0
 
 
+def find_llama_server(binary: str = "llama-server"):
+    exe = binary + (".exe" if os.name == "nt" else "")
+    for p in sorted((ROOT / "bin").glob(f"**/{exe}")):
+        return str(p)
+    return shutil.which(binary)
+
+
+def find_model(cfg):
+    f = cfg["model"].get("gguf_file")
+    if f and (ROOT / "models" / f).exists():
+        return ROOT / "models" / f
+    g = sorted((ROOT / "models").glob("*.gguf"))
+    return g[0] if g else None
+
+
 def check(need_model=True) -> list[str]:
     errs = []
     try:
         cfg = load_app(); load_personas()
-        load_helplines(max_age_days=cfg["limits"]["helplines_max_age_days"])
+        load_helplines()
     except HelplinesStale as e:
         errs.append(f"HELPLINES: {e}")
     except ConfigError as e:
@@ -32,12 +47,12 @@ def check(need_model=True) -> list[str]:
     if r and r < cfg["limits"]["min_free_ram_gb"] + 2:
         errs.append(f"RAM: {r:.1f} GB found; need at least {cfg['limits']['min_free_ram_gb'] + 2} GB.")
     if need_model:
-        if not list((ROOT / "models").glob("*.gguf")):
+        if not find_model(cfg):
             errs.append("MODEL: no .gguf in models/. Run: python scripts/download_model.py")
-        if not shutil.which(cfg["llama_server"]["binary"]):
-            errs.append("BINARY: llama-server not on PATH. Get llama.cpp releases (Vulkan build on Windows): "
-                        "https://github.com/ggml-org/llama.cpp/releases")
-    if "REPLACE" in cfg["study"]["researcher_contact"]:
+        if not find_llama_server(cfg["llama_server"]["binary"]):
+            errs.append("BINARY: llama-server not found. Run: python scripts/get_llama_server.py "
+                        "(or download llama.cpp from https://github.com/ggml-org/llama.cpp/releases and add it to PATH)")
+    if "REPLACE" in cfg["study"]["researcher_contact"] or "@" not in cfg["study"]["researcher_contact"]:
         errs.append("CONFIG: set study.researcher_contact in config/app.yaml (shown in the debrief).")
     return errs
 

@@ -27,7 +27,7 @@ def test_adjacent_only_all_profiles():
 def test_min_dwell_and_gradual():
     _, st = run("receptive", 3)
     assert st[1:3] == [1, 1]                      # never advances before 3 turns
-    assert max(st) <= 5
+    assert max(st) <= 6
 
 
 def test_receptive_progresses_resistant_does_not():
@@ -52,3 +52,32 @@ def test_scalars_bounded_steps():
         assert abs(d.s.offender_type - prev[0]) <= 0.05 + 1e-9 and abs(d.s.register - prev[1]) <= 0.05 + 1e-9
         assert 0 <= d.s.offender_type <= 1 and 0 <= d.s.register <= 1
         prev = (d.s.offender_type, d.s.register)
+
+
+def test_onset_gated_by_turns_and_resistance():
+    for seed in range(8):
+        d, st = run("receptive", seed, 40)
+        first6 = next((i for i, x in enumerate(st) if x == 6), None)
+        assert first6 is None or first6 >= 18, (seed, first6)          # never before 18 user turns
+        assert d.s.onset_turns / max(1, d.s.turn) <= 0.30                # share cap (+1 turn tolerance)
+        _, st = run("resistant", seed, 40); assert max(st) <= 2
+        _, st = run("neutral", seed, 40); assert max(st) <= 5          # neutral users never reach onset
+
+
+def test_onset_reachable_and_dropped_on_resistance():
+    for seed in range(30):
+        d = Director(BIAS, random.Random(seed))
+        reached = False
+        for m in PROFILES["receptive"] * 2:
+            d.observe(m); d.commit("a b c"); reached |= d.s.stage == 6
+            if d.s.stage == 6: break
+        if reached:
+            d.observe("no stop it"); assert d.s.stage == 5 and d.s.cooldown == 2
+            return
+    raise AssertionError("onset never reachable for a receptive user")
+
+
+def test_onset_can_be_disabled_by_config_only():
+    d = Director(BIAS, random.Random(1), allow_onset=False)
+    for m in PROFILES["receptive"] * 2: d.observe(m); d.commit("a b c")
+    assert d.s.stage <= 5

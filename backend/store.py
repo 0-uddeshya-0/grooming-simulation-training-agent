@@ -8,7 +8,7 @@ from .config import ROOT
 class Store:
     def __init__(self, path):
         self.path = str(path)
-        self.db = sqlite3.connect(self.path, check_same_thread=False)
+        self.db = sqlite3.connect(self.path, check_same_thread=False, timeout=10)
         self.db.row_factory = sqlite3.Row
         self.db.execute("PRAGMA journal_mode=DELETE")
         self.db.execute("PRAGMA foreign_keys=ON")
@@ -61,13 +61,28 @@ class Store:
     def events(self, sid):
         return [dict(r) for r in self.q("SELECT * FROM events WHERE sid=? ORDER BY ts", sid)]
 
+    def set_review(self, sid, idx, agree, now):
+        self.q("INSERT OR REPLACE INTO tag_reviews VALUES (?,?,?,?)", sid, idx, int(agree), now)
+
+    def reviews(self, sid):
+        return {r["idx"]: r["agree"] for r in self.q("SELECT idx, agree FROM tag_reviews WHERE sid=?", sid)}
+
+    def all_sessions(self):
+        return [dict(r) for r in self.q("""SELECT s.*,
+            (SELECT COUNT(*) FROM turns t WHERE t.sid=s.sid AND t.role='user') AS n_user,
+            (SELECT COUNT(*) FROM turns t WHERE t.sid=s.sid AND t.role='attacker') AS n_attacker,
+            (SELECT COUNT(*) FROM events e WHERE e.sid=s.sid AND e.kind='filter_hit') AS n_filter_hits,
+            (SELECT COUNT(*) FROM tag_reviews r WHERE r.sid=s.sid) AS n_reviewed,
+            (SELECT COALESCE(SUM(agree),0) FROM tag_reviews r WHERE r.sid=s.sid) AS n_agree
+            FROM sessions s ORDER BY s.started_at DESC""")]
+
     def save_debrief(self, sid, content, now):
         self.q("INSERT OR REPLACE INTO debriefs VALUES (?,?,?)", sid, now, json.dumps(content))
 
     def delete_participant(self, pid):
         sids = [r["sid"] for r in self.q("SELECT sid FROM sessions WHERE pid=?", pid)]
         for sid in sids:
-            for t in ("turns", "state_snapshots", "events", "debriefs"):
+            for t in ("turns", "state_snapshots", "events", "debriefs", "tag_reviews"):
                 self.q(f"DELETE FROM {t} WHERE sid=?", sid)
         self.q("DELETE FROM sessions WHERE pid=?", pid)
         self.q("DELETE FROM consents WHERE pid=?", pid)

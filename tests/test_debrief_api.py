@@ -21,12 +21,13 @@ def test_debrief_percentages_match_tags(make_engine, tmp_path):
     s1 = sum(t["primary_strategy"] == 0 for t in att) / len(att) * 100
     assert d["cards"][0]["primary_pct"] == round(s1, 1)
     assert sum(c["primary_pct"] for c in d["cards"]) == pytest.approx(100, abs=0.5)
-    assert d["helplines"] and d["researcher_contact"]
+    assert d["helplines"] and d["researcher"]["contact"] == "isha.nikam@student.hnu.de"
+    assert d["researcher"]["supervisor"] == "marten.risius@hnu.de" and "participant ID" in d["researcher"]["deletion_note"]
 
 
 def test_debrief_fails_on_stale_helplines(make_engine):
     e = make_engine(); sid = e.start_session("P1", "alex", True, True)["sid"]; e.stop(sid)
-    with pytest.raises(HelplinesStale): asyncio.run(build_debrief(e, sid))
+    with pytest.raises(HelplinesStale): asyncio.run(build_debrief(e, sid, today=dt.date(2027, 3, 1)))
 
 
 def test_api_end_to_end(tmp_path):
@@ -72,3 +73,22 @@ def test_personas_endpoint_lists_several_with_age(tmp_path):
     ps = c.get("/api/personas").json()
     assert {p["id"] for p in ps} >= {"alex", "sam", "jordan"} and all(p["age"] >= 19 for p in ps)
     assert c.get("/api/participant/NOPE/summary").status_code == 409
+    assert c.delete("/api/participant/NOPE").status_code in (404, 405)     # no participant-facing deletion
+    st = c.get("/api/study").json(); assert st["max_session_minutes"] == 45 and st["researcher_name"] == "Isha Nikam"
+    assert c.get("/api/health").json() == {"model_ready": True}
+
+
+def test_llamaserver_client_against_fake_server():
+    import asyncio, threading
+    from http.server import HTTPServer
+    from tests import fake_llama_server as F
+    from backend.config import load_app
+    from backend.llm import LlamaServer
+    srv = HTTPServer(("127.0.0.1", 0), F.H); threading.Thread(target=srv.serve_forever, daemon=True).start()
+    cfg = load_app(); cfg["llama_server"]["port"] = srv.server_port
+    out = asyncio.run(LlamaServer(cfg).generate([{"role": "user", "content": "hi"}], penalty_boost=0.1, seed=3))
+    srv.shutdown()
+    assert out == "hey, nice to meet you! what do you do for fun?"          # <think> block stripped
+    b = F.state["last"]
+    assert b["chat_template_kwargs"] == {"enable_thinking": False} and b["min_p"] == 0.05 and b["seed"] == 3
+    assert abs(b["repeat_penalty"] - 1.2) < 1e-9 and b["stream"] is False

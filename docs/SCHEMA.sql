@@ -47,3 +47,10 @@ CREATE TABLE IF NOT EXISTS debriefs (
   created_at REAL NOT NULL,
   content_json TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS tag_reviews (
+  sid TEXT NOT NULL REFERENCES sessions(sid),
+  idx INTEGER NOT NULL,          -- turn index of the attacker turn reviewed
+  agree INTEGER NOT NULL,        -- 1 = intended tag matches the text, 0 = does not
+  reviewed_at REAL NOT NULL,
+  PRIMARY KEY (sid, idx)
+);

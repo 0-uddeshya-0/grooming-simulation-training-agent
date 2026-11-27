@@ -1,8 +1,9 @@
 # ETHICS_NOTES (items to flag to the ethics board; draft)
 - No visible timer (D-021): participants are not shown the 45-minute limit; state the maximum duration in the information sheet.
 - Deception study: approval, consent framing, full debrief, post-debrief option to withdraw data.
-- Sexualisation-onset ceiling wording (D-007); S6 disabled until approved.
-- Abliterated model vs standard model (D-017).
+- Sexualisation-onset ceiling: APPROVED by the ethics board (researcher meeting, 2026-11-27); wording recorded in README and `backend/constants.py`. Prohibited list includes money, identifying data, in-person meetings, pressure, self-harm. Blocked outputs are logged for the researcher.
+- Abliterated model (D-017): no model-side refusals; limits enforced in code only.
+- Researcher log viewer stores/reads full transcripts: special-category risk; local only, token-protected.
 - Special-category data (sexual life, health, distress) in free text; pseudonymous is not anonymous; legal basis, DPIA, retention, transcript purge after debrief; deletion must cover SQLite WAL, backups, exports; full-disk encryption on the laptop.
 - Age gate is self-declared: verify via recruitment; minor/age-contradiction handling is deterministic (D-010).
 - Screening/warning for participants with abuse history; duty of care on real-abuse disclosures; researcher present or reachable.

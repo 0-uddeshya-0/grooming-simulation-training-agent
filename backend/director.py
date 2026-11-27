@@ -4,9 +4,13 @@ import re
 from dataclasses import dataclass, field
 from . import constants as C
 
-MAX_STAGE = 5   # stage 6 not built (D-012)
+MAX_STAGE = 6
 MIN_DWELL = {1: 3, 2: 4, 3: 3, 4: 3, 5: 4}
 ADV_THRESHOLD = {1: 0.35, 2: 0.4, 3: 0.45, 4: 0.5, 5: 0.6}
+ONSET_MIN_TURNS = 18        # stage 6 needs this many user turns, receptiveness >= 0.6, no resistance
+ONSET_MAX_SHARE = 0.25      # stage 6 may occupy at most this share of turns
+ONSET_MIN_LEN = 6.0         # ...and the user must be genuinely engaged: EMA of words per message
+ONSET_MIN_DISCLOSURES = 3   # ...and have volunteered personal information several times
 STEP = 0.05
 INTENT = {
     1: "Come across as relatable: share small personal details that mirror their interests.",
@@ -14,6 +18,7 @@ INTENT = {
     3: "Casually find out how much privacy and oversight they have in their day-to-day life.",
     4: "Offer something appealing: compliments, attention, or small shared plans.",
     5: "Deepen the bond: express closeness and a special connection between you two.",
+    6: "Let the warmth turn lightly romantic: compliment their personality or humour, say you enjoy talking to them, and ask gentle, non-explicit questions about relationships and feelings. Stay light, never explicit.",
 }
 SECONDARY_EASE = "Ease off and keep it light and friendly."
 
@@ -50,6 +55,9 @@ class State:
     facts: list = field(default_factory=list)
     history: list = field(default_factory=list)   # [(primary_idx, secondary_idx|None)]
     openers: list = field(default_factory=list)
+    onset_turns: int = 0
+    len_ema: float = 3.0
+    disclosures: int = 0
 
 
 def _clip(x, lo=0.0, hi=1.0):
@@ -57,9 +65,10 @@ def _clip(x, lo=0.0, hi=1.0):
 
 
 class Director:
-    def __init__(self, bias: dict, rng: random.Random | None = None, advance_p: float = 0.6):
+    def __init__(self, bias: dict, rng: random.Random | None = None, advance_p: float = 0.6, allow_onset: bool = True):
         self.rng = rng or random.Random()
         self.p = advance_p
+        self.max_stage = MAX_STAGE if (allow_onset and C.ALLOW_ONSET) else 5
         self.s = State(offender_type=bias["offender_type"], register=bias["register"])
 
     def observe(self, user_text: str) -> dict:
@@ -70,7 +79,9 @@ class Director:
         s.resistance_streak = s.resistance_streak + 1 if sig["resistance"] else 0
         if sig["resistance"]:
             s.ease_turns = 2
+        s.len_ema = 0.7 * s.len_ema + 0.3 * len(user_text.split())
         if sig["disclosure"] > 0:
+            s.disclosures += 1
             s.facts.append(user_text.strip()[:80])
             s.facts = s.facts[-6:]
         # scalars (bounded steps)
@@ -87,12 +98,17 @@ class Director:
         s.dwell += 1
         if s.cooldown:
             s.cooldown -= 1
-        if (s.resistance_streak >= 2 or s.receptiveness < 0.2) and s.stage > 1:
+        share = s.onset_turns / max(1, s.turn)
+        if s.stage == 6 and (sig["resistance"] or s.receptiveness < 0.45 or share > ONSET_MAX_SHARE or s.len_ema < 4):
+            s.stage, s.dwell, s.cooldown = 5, 0, 2          # drop out of onset immediately; fresh dwell needed to re-enter
+        elif (s.resistance_streak >= 2 or s.receptiveness < 0.2) and s.stage > 1:
             s.stage -= 1
             s.dwell = 0
             s.cooldown = 2
-        elif (s.stage < MAX_STAGE and s.dwell >= MIN_DWELL[s.stage] and not s.cooldown
+        elif (s.stage < self.max_stage and s.dwell >= MIN_DWELL[s.stage] and not s.cooldown
               and s.receptiveness >= ADV_THRESHOLD[s.stage] and not sig["resistance"]
+              and (s.stage < 5 or (s.turn >= ONSET_MIN_TURNS and s.resistance_streak == 0 and share < ONSET_MAX_SHARE
+                           and s.len_ema >= ONSET_MIN_LEN and s.disclosures >= ONSET_MIN_DISCLOSURES))
               and self.rng.random() < self.p):
             s.stage += 1
             s.dwell = 0
@@ -124,6 +140,8 @@ class Director:
         """Record the attacker turn (call after a reply is accepted)."""
         s = self.s
         s.history.append(self.tag())
+        if s.stage == 6:
+            s.onset_turns += 1
         s.openers.append(" ".join(reply.split()[:3]))
         s.openers = s.openers[-6:]
         if s.ease_turns:

@@ -15,3 +15,5 @@ Browser UI (chat, Stop) <-> FastAPI (127.0.0.1) <-> llama-server (GGUF, 127.0.0.
 - **Model-agnostic**: model, quant, sampling, template switches in `config/app.yaml`.
 - **Privacy**: no outbound network, pseudonymous IDs, `DELETE /api/participant/{pid}` removes all rows. No raw attacker prompts exported; personas live in researcher-side `config/`.
 - **Mocking**: LLM client interface has a mock implementation so CI runs without weights.
+- **Researcher viewer** (`backend/researcher.py`, port 8001, token): read-mostly view of the same SQLite DB (sessions, transcripts with intended tags, blocked outputs, distress events, tag-validity review, CSV export, deletion). Separate from the participant app.
+- **Launcher** (`scripts/launch.py`): preflight -> llama-server (`--jinja`, GPU layers from config, `--cpu` fallback) -> wait for `/health` -> app -> browser.

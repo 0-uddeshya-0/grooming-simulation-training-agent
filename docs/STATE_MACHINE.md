@@ -34,7 +34,7 @@ Receptive/neutral/resistant scripted users: assert adjacent-only transitions, mi
 
 ## Audit amendments (advisor review, D-009..D-014)
 - Initial receptiveness = 0.5, resistance_streak = 0. Regression from S1 = stay (S1 is the floor). After an S6 drop, re-entry requires a fresh dwell of 4 turns in S5.
-- S6 is **not built** and `allow_onset` defaults false until the ethics board supplies wording (D-007).
+- S6 (onset) is built (ethics board approval, D-024). Entry from S5 needs: >= 18 user turns, receptiveness >= 0.6, resistance_streak == 0, EMA of words per message >= 6, >= 3 personal disclosures, S6 share of turns < 25%, dwell >= 4 in S5, advance draw. Any resistance, receptiveness < 0.45, share > 25% or short replies (EMA < 4) drops it to S5 immediately (2-turn cooldown, fresh dwell). `safeguards.allow_onset: false` in config turns S6 off; config can never force it on beyond the constant.
 - STOP is a whole-message, case-insensitive exact match only ("stop talking about" is a resistance phrase, never a stop).
 - Resistant users will mostly stay in S1-S2; the debrief then shows little exposure. This is an expected, reported limitation.
 - Tags are *intended* exposure (stage-derived). Report as such; add a per-turn lexicon cross-check and a researcher hand-coded sample for validity (acceptance criterion wording: "intended exposure matches logs; validity via spot check").

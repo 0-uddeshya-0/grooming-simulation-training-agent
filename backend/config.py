@@ -23,7 +23,8 @@ class HelplinesStale(ConfigError):
 def load_app(path: Path = ROOT / "config" / "app.yaml") -> dict:
     cfg = yaml.safe_load(Path(path).read_text())
     lim = cfg.setdefault("limits", {})
-    lim["max_session_seconds"] = min(int(lim.get("max_session_minutes", 45)) * 60, C.MAX_SESSION_SECONDS)
+    mins = cfg.get("study", {}).get("max_session_minutes", lim.get("max_session_minutes", 45))
+    lim["max_session_seconds"] = min(int(mins) * 60, C.MAX_SESSION_SECONDS)
     cfg["config_hash"] = hashlib.sha256(Path(path).read_bytes()).hexdigest()[:12]
     return cfg
 
@@ -63,15 +64,19 @@ def load_personas(d: Path = ROOT / "config" / "personas") -> dict:
     return out
 
 
-def load_helplines(path: Path = ROOT / "config" / "helplines.yaml", max_age_days: int = 90,
+def load_helplines(path: Path = ROOT / "config" / "helplines.yaml", max_age_days: int | None = None,
                    today: dt.date | None = None) -> dict:
     h = yaml.safe_load(Path(path).read_text())
     lv = h["last_verified"]
     if isinstance(lv, str):
         lv = dt.date.fromisoformat(lv)
+    limit = int(max_age_days if max_age_days is not None else h.get("max_age_days", 60))
     age = ((today or dt.date.today()) - lv).days
-    if age > max_age_days:
+    if age > limit:
         raise HelplinesStale(
-            f"helplines last verified {lv} ({age} days ago, limit {max_age_days}). "
+            f"helplines last verified {lv} ({age} days ago, limit {limit}). "
             "Re-verify every number in config/helplines.yaml and update last_verified.")
+    h["last_verified"] = lv
+    h["helplines"] = [{"name": x["name"], "number": x["number"], "hours": x.get("hours", ""), "note": x.get("note", "")}
+                      for x in h["helplines"]]
     return h

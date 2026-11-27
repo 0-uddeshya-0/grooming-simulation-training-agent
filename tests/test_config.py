@@ -17,12 +17,15 @@ def test_persona_rejects(kw):
 
 
 def test_config_only_tightens(tmp_path):
-    f = tmp_path / "a.yaml"; f.write_text("limits: {max_session_minutes: 999}\nmodel: {}\n")
+    f = tmp_path / "a.yaml"; f.write_text("study: {max_session_minutes: 999}\nmodel: {}\n")
     assert load_app(f)["limits"]["max_session_seconds"] == 45 * 60
-    f.write_text("limits: {max_session_minutes: 10}\n")
+    f.write_text("study: {max_session_minutes: 10}\n")
     assert load_app(f)["limits"]["max_session_seconds"] == 600
+    assert load_app()["limits"]["max_session_seconds"] == 45 * 60
 
 
 def test_helplines_stale_and_fresh():
-    with pytest.raises(HelplinesStale): load_helplines(today=dt.date(2026, 11, 27))
-    load_helplines(today=dt.date(2025, 12, 1))
+    h = load_helplines(today=dt.date(2026, 12, 1))
+    assert len(h["helplines"]) == 6 and all(x["number"] for x in h["helplines"])
+    with pytest.raises(HelplinesStale): load_helplines(today=dt.date(2027, 2, 1))     # > 60 days
+    assert load_helplines(today=dt.date(2027, 1, 20))                                  # 54 days: ok

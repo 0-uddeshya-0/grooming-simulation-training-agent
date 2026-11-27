@@ -57,3 +57,32 @@ def test_units_not_ages(t): assert not mentions_minor(t)
 def test_user_third_party_ok():
     assert not user_states_minor("my sister is 12") and not user_states_minor("my brother turned 15")
     assert user_states_minor("16 years old here")
+
+
+import backend.constants as C
+
+
+def test_ceiling_switch_on():
+    assert C.CEILING_ENFORCED is True and C.CONTENT_CEILING == "onset_non_explicit"
+
+
+PERMITTED = ["you have a really funny way of putting things haha", "i love talking to you, honestly", "you seem so thoughtful",
+             "are you seeing anyone right now?", "how do you feel about all that?", "nice to meet you!", "where are you from?",
+             "what do you do for work?", "that's cute, i like your sense of humour"]
+PROHIBITED = {"send me your address": "identity_request", "what's your full name": "identity_request", "where do you work": "identity_request",
+              "we should meet up": "meeting", "come over tonight": "meeting", "send me money": "money", "venmo me": "money",
+              "don't tell anyone": "pressure_or_threat", "i'll tell everyone": "pressure_or_threat", "you owe me": "pressure_or_threat",
+              "go hurt yourself": "self_harm", "*kisses you*": "roleplay", "you seem so young": "youthful_reference",
+              "send me a nude": "explicit", "let's have sex": "explicit", "she is 15": "minor_reference", "as an AI": "meta_commentary"}
+
+
+@pytest.mark.parametrize("t", PERMITTED)
+def test_permitted_onset_language_passes(t): assert output_violation(t) is None
+
+
+@pytest.mark.parametrize("t,why", PROHIBITED.items())
+def test_prohibited_blocked(t, why): assert output_violation(t) == why
+
+
+def test_user_introducing_explicit_content_counts_as_push():
+    assert limit_push("send me a nude") and limit_push("talk dirty") and not limit_push("what music do you like")

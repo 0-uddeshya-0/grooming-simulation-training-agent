@@ -1,7 +1,10 @@
 """LLM clients. llama-server is OpenAI-compatible; a mock lets CI run without weights."""
 import asyncio
 import itertools
+import re
 import httpx
+
+_THINK = re.compile(r"<think>.*?</think>", re.S)
 
 
 class LlamaServer:
@@ -22,7 +25,8 @@ class LlamaServer:
         async with httpx.AsyncClient(timeout=120) as c:
             r = await c.post(self.url, json=body)
             r.raise_for_status()
-            return r.json()["choices"][0]["message"]["content"].strip()
+            text = r.json()["choices"][0]["message"]["content"]
+            return _THINK.sub("", text).split("</think>")[-1].strip()
 
 
 class MockLLM:

@@ -14,6 +14,8 @@ const post = (url, body) => fetch(url, {method: "POST", headers: {"Content-Type"
 const avatar = (p, lg) => `<span class="avatar${lg ? " lg" : ""}" style="--h:${hue(p.id)}" aria-hidden="true">${esc(p.name[0])}</span>`;
 
 /* ================= gate ================= */
+fetch("/api/study").then(r => r.json()).then(s => { $("title").textContent = s.title; $("maxmin").textContent = s.max_session_minutes;
+  $("rname").textContent = s.researcher_name + ", " + s.researcher_contact; document.title = s.title; }).catch(() => {});
 $("next1").onclick = () => {
   if (!$("c1").checked || !$("c2").checked) { $("err1").textContent = "Please tick both boxes to continue."; return; }
   $("err1").textContent = ""; $("g1").hidden = true; $("g2").hidden = false; $("st2").classList.add("on"); $("pid").focus();
@@ -24,6 +26,7 @@ $("go").onclick = async () => {
   const pid = $("pid").value.trim();
   if (!/^[\w.-]{1,40}$/.test(pid)) { $("err").textContent = "Enter the ID the researcher gave you (letters, numbers, - . _)."; return; }
   A.pid = pid;
+  try { const h = await (await fetch("/api/health")).json(); if (!h.model_ready) { $("err").textContent = "The chat model is still loading. Please wait a moment and try again."; return; } } catch {}
   try { A.personas = await (await fetch("/api/personas")).json(); }
   catch { $("err").textContent = "Cannot reach the study server. Tell the researcher."; return; }
   A.personas.forEach(p => A.threads.set(p.id, {p, sid: null, state: "idle", msgs: [], busy: false, typing: false, seen: false,
@@ -167,7 +170,8 @@ function ensurePoll() {   // no visible timer: quietly notice server-side time-o
 }
 
 /* ================= debrief ================= */
-const lines = d => `<ul class="lines">${d.helplines.map(l => `<li><b>${esc(l.name)}</b><br>${esc(l.number)} <span class="small muted">· ${esc(l.hours)}</span></li>`).join("")}</ul><p class="small muted">Helplines last verified ${esc(d.helplines_last_verified)}</p>`;
+const lines = d => `<ul class="lines">${d.helplines.map(l => `<li><b>${esc(l.name)}</b><br>${esc(l.number)}${l.hours ? ` <span class="small muted">· ${esc(l.hours)}</span>` : ""}${l.note ? `<br><span class="small muted">${esc(l.note)}</span>` : ""}</li>`).join("")}</ul><p class="small muted">Helplines last verified ${esc(d.helplines_last_verified)}</p>`;
+const contact = d => { const r = d.researcher; return `<div class="card"><h3>Questions, or want your data deleted?</h3><p>${esc(r.name)}: <b>${esc(r.contact)}</b><br><span class="muted">Supervisor: ${esc(r.supervisor)}</span></p><p class="small muted">${esc(r.deletion_note)}</p></div>`; };
 const gauge = (title, v, a, b) => `<div class="gauge"><div class="small"><b>${title}</b></div><div class="track" role="img" aria-label="${title}: ${v} on a scale from 0 (${a}) to 1 (${b})"><span class="pin" style="left:${Math.max(3, Math.min(97, v * 100))}%"></span></div><div class="lbl"><span>${a}</span><span>${b}</span></div></div>`;
 function sparkline(st) {
   if (!st || st.length < 2) return "";
@@ -203,7 +207,7 @@ function paintDebrief(th) {
       <p class="small muted">${esc(d.note)}</p></div>`;
     h += wellbeing(d);
     if (!th.support) h += `<div class="card"><h3>Support</h3>${lines(d)}</div>`;
-    h += `<p class="muted">Researcher: ${esc(d.researcher_contact)}</p>`;
+    h += contact(d);
   }
   pane.innerHTML = h + "</div></div>";
   if (th.debriefOk) wireWellbeing(d);
@@ -220,7 +224,7 @@ async function paintSummary() {
     h += `<p class="lede">${d.conversations.length} conversation${d.conversations.length > 1 ? "s" : ""}, ${d.attacker_turns} messages from the simulated contacts.</p>`;
     d.cards.forEach(c => { h += `<div class="card"><h3>${esc(c.strategy)}<span class="pct">${c.primary_pct}%</span></h3><div class="meter"><i style="width:${c.primary_pct}%"></i></div><p class="muted small">${esc(c.description)}</p></div>`; });
     h += `<div class="card"><h3>By conversation</h3>${d.conversations.map(c => `${gauge(esc(c.persona) + " · offender type", c.offender_value, "intimacy-seeking", "sexually preoccupied")}${gauge(esc(c.persona) + " · register", c.register_value, "passive", "controlling")}`).join("")}<p class="small muted">${esc(d.note)}</p></div>`;
-    h += wellbeing(d) + `<div class="card"><h3>Support</h3>${lines(d)}</div><p class="muted">Researcher: ${esc(d.researcher_contact)}</p>`;
+    h += wellbeing(d) + `<div class="card"><h3>Support</h3>${lines(d)}</div>` + contact(d);
   }
   pane.innerHTML = h + "</div></div>"; if (ok) wireWellbeing(d);
 }

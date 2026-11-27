@@ -29,6 +29,12 @@ def register_summary(v: float) -> str:
             f"{_band(v, 'mostly passive', 'mostly controlling')}. Control colours how every strategy is expressed. (Barber & Bettez, 2021)")
 
 
+def researcher_block(cfg) -> dict:
+    st = cfg["study"]
+    return {"name": st["researcher_name"], "contact": st["researcher_contact"],
+            "supervisor": st["supervisor_contact"].strip("<> "), "deletion_note": st["data_deletion_note"]}
+
+
 async def paraphrase(llm, text: str) -> str:
     if llm is None:
         return text[:120]
@@ -43,7 +49,7 @@ async def paraphrase(llm, text: str) -> str:
 
 async def build_debrief(engine, sid, llm=None, helplines_path=None, today=None) -> dict:
     cfg = engine.cfg
-    kw = {"max_age_days": cfg["limits"]["helplines_max_age_days"], "today": today}
+    kw = {"today": today}
     if helplines_path:
         kw["path"] = helplines_path
     helplines = load_helplines(**kw)            # raises HelplinesStale
@@ -73,7 +79,7 @@ async def build_debrief(engine, sid, llm=None, helplines_path=None, today=None) 
         "offender_type": offender_summary(last["offender_type"]),
         "register": register_summary(last["register"]),
         "helplines": helplines["helplines"], "helplines_last_verified": str(helplines["last_verified"]),
-        "wellbeing_note": cfg["study"]["wellbeing_note"], "researcher_contact": cfg["study"]["researcher_contact"],
+        "wellbeing_note": cfg["study"]["wellbeing_note"], "researcher": researcher_block(cfg),
     }
     engine.store.save_debrief(sid, out, engine.clock())
     return out
@@ -82,7 +88,7 @@ async def build_debrief(engine, sid, llm=None, helplines_path=None, today=None) 
 async def build_summary(engine, pid, helplines_path=None, today=None) -> dict:
     """Combined summary across a participant's finished conversations (pooled attacker turns)."""
     cfg = engine.cfg
-    kw = {"max_age_days": cfg["limits"]["helplines_max_age_days"], "today": today}
+    kw = {"today": today}
     if helplines_path:
         kw["path"] = helplines_path
     helplines = load_helplines(**kw)
@@ -103,4 +109,4 @@ async def build_summary(engine, pid, helplines_path=None, today=None) -> dict:
     return {"pid": pid, "conversations": rows, "attacker_turns": len(hist), "cards": cards,
             "note": "Pooled across your conversations: share of attacker messages whose intended strategy was each one.",
             "helplines": helplines["helplines"], "helplines_last_verified": str(helplines["last_verified"]),
-            "wellbeing_note": cfg["study"]["wellbeing_note"], "researcher_contact": cfg["study"]["researcher_contact"]}
+            "wellbeing_note": cfg["study"]["wellbeing_note"], "researcher": researcher_block(cfg)}

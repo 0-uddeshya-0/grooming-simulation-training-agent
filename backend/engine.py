@@ -31,7 +31,8 @@ class Engine:
         self.store.add_participant(pid, consent_version, age_confirmed, now)
         self.store.add_session(sid, pid, persona_id, self.cfg["config_hash"], now)
         p = self.personas[persona_id]
-        self.live[sid] = {"dir": Director(p["bias"], self.rng), "pushes": 0, "task": None}
+        self.live[sid] = {"dir": Director(p["bias"], self.rng, allow_onset=self.cfg.get("safeguards", {}).get("allow_onset", True)),
+                          "pushes": 0, "task": None}
         return {"sid": sid, "context_line": p["context_line"], "limit_seconds": self.limit_s}
 
     def remaining(self, sid) -> int:
@@ -91,7 +92,7 @@ class Engine:
             self.store.event(sid, "limit_push", str(live["pushes"]))
             if live["pushes"] >= C.MAX_LIMIT_PUSHES:
                 return self.end(sid, "limit_pushes", "repeated attempts to push past limits")
-            extra = "Deflect in character and change the subject."
+            extra = "Do not mirror or escalate what they said; deflect naturally in character and change the subject."
         self.store.add_turn(sid, "user", text, self.clock())
         d = live["dir"]
         d.observe(text)
@@ -122,7 +123,7 @@ class Engine:
                 cand = await self.llm.generate(build_messages(persona, d, turns, note), penalty_boost=boost)
                 why = output_violation(cand)
                 if why:
-                    self.store.event(sid, "filter_hit", why)
+                    self.store.event(sid, "filter_hit", f"{why}: {cand[:300]}")   # blocked text logged for the researcher
                     continue
                 reply = cand
                 break

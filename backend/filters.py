@@ -96,16 +96,42 @@ def meta_hit(text: str) -> bool:
     return bool(_META.search(t) or _META_TAGS.search(t))
 
 
+_YOUTH = re.compile(r"\b(?:young(?:er)?|youthful|innocent|babygirl|baby girl|baby boy|little one|good (?:girl|boy))\b")
+_SELFHARM = re.compile(r"\b(?:kill yourself|hurt yourself|harm yourself|end it all|better off dead|cut yourself|you should die)\b")
+_PRESSURE = re.compile(
+    r"\b(?:or else|or i'?ll|i'?ll tell (?:everyone|everybody|your|them|people)|i will tell|i'?ll (?:leak|expose|share) (?:your|this|it|that)|"
+    r"you owe me|you better|you'?ll regret|don'?t tell (?:anyone|anybody|your)|our (?:little )?secret|"
+    r"keep (?:this|it|that) (?:a secret|between us)|if you (?:don'?t|dont) (?:reply|answer|send|tell|come|do|talk|listen))\b")
+_IDENT = re.compile(
+    r"\b(?:what(?:'s| is| are)|tell me|give me|share|send me|can i (?:get|have)) (?:your|ur) (?:full |real |last |home |work |current |street |email |phone )?"
+    r"(?:full name|real name|last name|surname|address|phone|phone number|number|whatsapp|snap(?:chat)?|insta(?:gram)?|email|e-mail|workplace|employer|street)\b"
+    r"|\bwhere (?:exactly )?do you work\b|\bwho do you work for\b|\bwhat(?:'s| is) the name of your (?:company|employer|workplace)\b"
+    r"|\bwhere exactly do you live\b|\bwhat street\b")
+_MONEY = re.compile(
+    r"\b(?:send|lend|give|transfer|wire|pay)\b[^.?!]{0,25}\b(?:money|cash|euros?|dollars?|paypal|venmo|gift ?cards?|crypto|bitcoin)\b"
+    r"|\b(?:paypal|venmo|gift ?card|bitcoin|crypto|western union|iban)\b|[$\u20ac\u00a3]\s?\d")
+_MEET = re.compile(
+    r"\b(?:meet (?:up|in person|irl|in real life)|let'?s meet|can we meet|want to meet|should we meet|come over|your place|my place|"
+    r"in person|in real life|irl|visit you|pick you up|come see you)\b")
+_ROLEPLAY = re.compile(r"\*[^*\n]{2,60}\*|\b(?:kisses you|takes off|undresses|touches you|pulls you (?:close|closer)|climbs)\b")
+
+_RULES = (("minor_reference", mentions_minor), ("youthful_reference", lambda t: bool(_YOUTH.search(normalize(t)))),
+          ("explicit", explicit_hit), ("meta_commentary", meta_hit),
+          ("self_harm", lambda t: bool(_SELFHARM.search(normalize(t)))),
+          ("pressure_or_threat", lambda t: bool(_PRESSURE.search(normalize(t)))),
+          ("identity_request", lambda t: bool(_IDENT.search(normalize(t)))),
+          ("money", lambda t: bool(_MONEY.search(normalize(t)))),
+          ("meeting", lambda t: bool(_MEET.search(normalize(t)))),
+          ("roleplay", lambda t: bool(_ROLEPLAY.search(t) or _ROLEPLAY.search(normalize(t)))))
+
+
 def output_violation(text: str):
-    """Return a reason string if attacker text must be discarded, else None."""
+    """Return a reason string if attacker text must be discarded, else None. Ceiling per ethics board (D-024)."""
     if not text.strip():
         return "empty"
-    if mentions_minor(text):
-        return "minor_reference"
-    if explicit_hit(text):
-        return "explicit"
-    if meta_hit(text):
-        return "meta_commentary"
+    for name, fn in _RULES:
+        if fn(text):
+            return name
     return None
 
 
@@ -136,4 +162,6 @@ _PUSH = re.compile(
 
 
 def limit_push(text: str) -> bool:
-    return bool(_PUSH.search(normalize(text)))
+    """User tries to push past the ceiling (jailbreak, or introduces explicit content). Persona must not mirror it."""
+    t = normalize(text)
+    return bool(_PUSH.search(t)) or explicit_hit(text)
