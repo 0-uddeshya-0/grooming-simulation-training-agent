@@ -2,55 +2,91 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Training system study</title>
 <style>
-*{box-sizing:border-box}body{margin:0;font-family:system-ui,sans-serif;background:#e9edef;color:#111}
-.wrap{max-width:560px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;background:#fff}
-.pad{padding:20px}h1{font-size:20px}button{font:inherit;padding:10px 16px;border-radius:8px;border:0;background:#2563eb;color:#fff;cursor:pointer}
-button.sec{background:#e5e7eb;color:#111}input[type=text]{font:inherit;padding:10px;border:1px solid #ccc;border-radius:8px;width:100%}
-#top{display:flex;align-items:center;gap:8px;padding:10px 14px;background:#075e54;color:#fff}#top b{flex:1}
-#stop{background:#dc2626}#msgs{flex:1;overflow:auto;padding:12px;background:#efeae2;display:flex;flex-direction:column;gap:6px}
-.m{max-width:78%;padding:8px 10px;border-radius:10px;font-size:15px;line-height:1.35;word-wrap:break-word}
-.me{align-self:flex-end;background:#d9fdd3}.them{align-self:flex-start;background:#fff}.ctx{align-self:center;font-size:13px;color:#555;background:#fff8;padding:6px 10px;border-radius:8px}
-.t{font-size:11px;color:#777;text-align:right}#bar{display:flex;gap:8px;padding:10px;border-top:1px solid #ddd}
-.card{border:1px solid #ddd;border-radius:10px;padding:12px;margin:10px 0}.hide{display:none}.typing{font-style:italic;color:#666}
+/* shadcn/ui-style tokens (zinc), plain CSS so no build step is needed */
+:root{--bg:#fafafa;--card:#fff;--fg:#09090b;--muted:#f4f4f5;--muted-fg:#52525b;--border:#e4e4e7;--primary:#18181b;--primary-fg:#fafafa;
+--destructive:#dc2626;--ring:#a1a1aa;--accent:#2563eb;--radius:.6rem}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:600px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column}
+.screen{display:none;padding:20px}.screen.on{display:block}#chat.on{display:flex;flex-direction:column;height:100vh;padding:0}
+h1{font-size:1.4rem;letter-spacing:-.02em;margin:.2em 0 .4em}h2{font-size:1.05rem;margin:1.4em 0 .5em}p{margin:.5em 0}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin:12px 0;box-shadow:0 1px 2px #0000000d}
+.btn{font:inherit;font-weight:500;padding:.55rem 1rem;border-radius:calc(var(--radius) - 2px);border:1px solid transparent;background:var(--primary);color:var(--primary-fg);cursor:pointer}
+.btn:hover{opacity:.9}.btn:disabled{opacity:.5;cursor:not-allowed}.btn.outline{background:var(--card);color:var(--fg);border-color:var(--border)}
+.btn.destructive{background:var(--destructive);color:#fff}.btn.block{width:100%;text-align:left;margin:6px 0;display:flex;gap:12px;align-items:center}
+:focus-visible{outline:2px solid var(--ring);outline-offset:2px}
+input[type=text]{font:inherit;width:100%;padding:.55rem .75rem;border:1px solid var(--border);border-radius:calc(var(--radius) - 2px);background:#fff}
+label.check{display:flex;gap:10px;align-items:flex-start;margin:10px 0}label.check input{margin-top:4px;width:16px;height:16px}
+.err{color:var(--destructive);min-height:1.4em}.small{font-size:.8rem;color:var(--muted-fg)}
+.avatar{width:36px;height:36px;border-radius:50%;background:var(--muted);color:var(--fg);display:grid;place-items:center;font-weight:600;flex:none}
+#top{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--card);border-bottom:1px solid var(--border)}
+#top .nm{flex:1;line-height:1.2}#top .nm small{display:block;color:var(--muted-fg);font-size:.75rem}
+.pill{font-variant-numeric:tabular-nums;background:var(--muted);border-radius:999px;padding:.2rem .7rem;font-size:.85rem}
+#msgs{flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:6px;background:var(--bg)}
+.m{max-width:80%;padding:8px 12px;border-radius:16px;word-wrap:break-word;white-space:pre-wrap}
+.me{align-self:flex-end;background:var(--primary);color:var(--primary-fg);border-bottom-right-radius:4px}
+.them{align-self:flex-start;background:var(--muted);border-bottom-left-radius:4px}
+.ctx{align-self:center;text-align:center;font-size:.8rem;color:var(--muted-fg);background:var(--card);border:1px solid var(--border);padding:6px 12px;border-radius:999px;max-width:92%}
+.t{font-size:.68rem;opacity:.7;margin-top:2px;text-align:right}
+.dots span{display:inline-block;width:6px;height:6px;margin:0 2px;border-radius:50%;background:var(--muted-fg);animation:b 1.2s infinite}
+.dots span:nth-child(2){animation-delay:.15s}.dots span:nth-child(3){animation-delay:.3s}
+@keyframes b{0%,60%,100%{opacity:.3}30%{opacity:1}}@media(prefers-reduced-motion:reduce){.dots span{animation:none}}
+#bar{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--border);background:var(--card)}
+.bar{height:8px;background:var(--muted);border-radius:99px;overflow:hidden;margin:8px 0}.bar i{display:block;height:100%;background:var(--accent)}
+.badge{display:inline-block;background:var(--muted);border-radius:999px;padding:.1rem .6rem;font-size:.8rem;font-weight:600;margin-left:6px}
+.support{border-color:#fca5a5;background:#fef2f2}.ex{margin:.4rem 0 0;padding-left:1.1rem;color:var(--muted-fg)}
+ul.lines{list-style:none;padding:0;margin:.5rem 0}ul.lines li{padding:.5rem 0;border-top:1px solid var(--border)}ul.lines li:first-child{border-top:0}
 </style></head><body><div class="wrap">
-<div id="intro" class="pad"><h1>Study: a training system that protects against manipulation</h1>
-<p>You will chat with simulated contacts. You may withdraw at any time, for any reason, and request deletion of your data. Everything runs locally on this computer.</p>
-<p>A <b>Stop</b> button is always visible. A researcher is present or reachable.</p>
-<p><label><input type="checkbox" id="c1"> I have read the information and consent to take part.</label></p>
-<p><label><input type="checkbox" id="c2"> I confirm that I am 18 or older.</label></p>
-<p>Participant ID (given by the researcher)<br><input type="text" id="pid"></p>
-<button id="go">Continue</button><p id="err" style="color:#b91c1c"></p></div>
-<div id="pick" class="pad hide"><h1>Choose who to chat with</h1><div id="plist"></div></div>
-<div id="chat" class="hide" style="flex:1;display:none;flex-direction:column">
-<div id="top"><b id="who"></b><span id="timer"></span><button id="stop">Stop</button></div>
-<div id="msgs"></div><div id="bar"><input type="text" id="inp" placeholder="Type a message" autocomplete="off"><button id="send">Send</button></div></div>
-<div id="deb" class="pad hide"></div></div>
+<main id="intro" class="screen on"><h1>Study: a training system that protects against manipulation</h1>
+<div class="card"><p>You will chat with simulated contacts. You may withdraw at any time, for any reason, and ask for your data to be deleted. Everything runs locally on this computer.</p>
+<p>A <b>Stop</b> button is always visible. A researcher is present or reachable.</p></div>
+<label class="check"><input type="checkbox" id="c1"><span>I have read the information and consent to take part.</span></label>
+<label class="check"><input type="checkbox" id="c2"><span>I confirm that I am 18 or older.</span></label>
+<p><label for="pid">Participant ID (given by the researcher)</label></p><input type="text" id="pid" autocomplete="off">
+<p><button class="btn" id="go">Continue</button></p><p class="err" id="err" role="alert"></p></main>
+<main id="pick" class="screen"><h1>Choose who to chat with</h1><p class="small">You can talk to more than one person, one chat each.</p><div id="plist"></div></main>
+<main id="chat" class="screen">
+<header id="top"><div class="avatar" id="av"></div><div class="nm"><b id="who"></b><small>messaging app</small></div>
+<span class="pill" id="timer" role="timer" aria-label="Time remaining"></span><button class="btn destructive" id="stop">Stop</button></header>
+<div id="msgs" role="log" aria-live="polite" aria-label="Conversation"></div>
+<form id="bar"><input type="text" id="inp" placeholder="Type a message" autocomplete="off" aria-label="Message"><button class="btn" id="send" type="submit">Send</button></form></main>
+<main id="deb" class="screen"></main></div>
 <script>
-const $=id=>document.getElementById(id);let S=null,pid="",left=0,tick=null,busy=false,debs=[];
-const show=id=>{["intro","pick","chat","deb"].forEach(x=>{$(x).style.display=x===id?(x==="chat"?"flex":"block"):"none"})};
-const api=async(p,o)=>{const r=await fetch(p,o&&{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(o)});return r.json()};
-show("intro");
+const $=id=>document.getElementById(id);let S=null,pid="",left=0,tick=null,busy=false;
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const show=id=>["intro","pick","chat","deb"].forEach(x=>$(x).classList.toggle("on",x===id));
+const post=(p,b)=>fetch(p,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b||{})});
 $("go").onclick=async()=>{pid=$("pid").value.trim();if(!$("c1").checked||!$("c2").checked||!pid){$("err").textContent="Please tick both boxes and enter your participant ID.";return}
- const ps=await (await fetch("/api/personas")).json();$("plist").innerHTML="";
- ps.forEach(p=>{const b=document.createElement("button");b.textContent="Chat with "+p.name;b.style.margin="6px";b.onclick=()=>start(p);$("plist").appendChild(b)});show("pick")};
-async function start(p){const r=await fetch("/api/session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({participant_id:pid,persona_id:p.id,consent:true,age_confirmed:true})});
- if(!r.ok){$("err").textContent="Could not start.";show("intro");return}S=await r.json();S.name=p.name;left=S.limit_seconds;$("who").textContent=p.name;$("msgs").innerHTML="";
- add("ctx",S.context_line);show("chat");clearInterval(tick);tick=setInterval(()=>{left=Math.max(0,left-1);$("timer").textContent=Math.floor(left/60)+":"+String(left%60).padStart(2,"0");if(left<=0)end()},1000)}
-const add=(c,t)=>{const d=document.createElement("div");d.className="m "+c;d.textContent=t;if(c!=="ctx"){const s=document.createElement("div");s.className="t";s.textContent=new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});d.appendChild(s)}$("msgs").appendChild(d);$("msgs").scrollTop=1e9;return d};
+ $("err").textContent="";const ps=await (await fetch("/api/personas")).json();$("plist").innerHTML="";
+ ps.forEach(p=>{const b=document.createElement("button");b.className="btn outline block";b.innerHTML=`<span class="avatar">${esc(p.name[0])}</span><span><b>${esc(p.name)}</b><br><small class="small">Start a chat</small></span>`;b.onclick=()=>start(p);$("plist").appendChild(b)});show("pick")};
+async function start(p){const r=await post("/api/session",{participant_id:pid,persona_id:p.id,consent:true,age_confirmed:true});
+ if(!r.ok){$("err").textContent="Could not start the session. Tell the researcher.";show("intro");return}
+ S=await r.json();left=S.limit_seconds;$("who").textContent=p.name;$("av").textContent=p.name[0];$("msgs").innerHTML="";add("ctx",S.context_line);show("chat");$("inp").focus();
+ clearInterval(tick);paint();tick=setInterval(()=>{left=Math.max(0,left-1);paint();if(left<=0)end()},1000)}
+const paint=()=>$("timer").textContent=Math.floor(left/60)+":"+String(left%60).padStart(2,"0");
+function add(c,t,html){const d=document.createElement("div");d.className="m "+c;if(html)d.innerHTML=html;else d.textContent=t;
+ if(c==="me"||c==="them"){const s=document.createElement("div");s.className="t";s.textContent=new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});d.appendChild(s)}$("msgs").appendChild(d);$("msgs").scrollTop=1e9;return d}
+const typing=()=>add("them","",'<span class="dots" aria-label="typing"><span></span><span></span><span></span></span>');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-async function send(){const t=$("inp").value.trim();if(!t||busy||!S)return;$("inp").value="";add("me",t);busy=true;
- const ty=add("them typing","typing…");const r=await api("/api/session/"+S.sid+"/message",{text:t});
- if(r.ended){ty.remove();return finish()}
- for(const m of r.messages){await sleep(m.delay_ms);ty.remove();add("them",m.text);if(m!==r.messages[r.messages.length-1]){ty.textContent="typing…";$("msgs").appendChild(ty)}}busy=false}
-async function end(){if(!S)return;await fetch("/api/session/"+S.sid+"/stop",{method:"POST"});finish()}
-async function finish(){clearInterval(tick);const sid=S.sid;S=null;busy=false;
- const d=await (await fetch("/api/session/"+sid+"/debrief")).json();debs.push(d);render(d)}
-function render(d){let h="<h1>Debrief</h1><p>This was a simulation of an online manipulator. Here is what you were exposed to.</p>";
- if(d.detail){h+="<p>"+d.detail+"</p>"}else{
- d.cards.forEach(c=>{h+=`<div class="card"><b>${c.strategy}</b> — ${c.primary_pct}% of messages<br>${c.description}<ul>${c.examples.map(e=>"<li>"+e+"</li>").join("")}</ul></div>`});
- h+=`<p>${d.offender_type}</p><p>${d.register}</p><p><small>${d.note}</small></p>`;
- h+="<h2>Support</h2><p>"+d.wellbeing_note+"</p><ul>"+d.helplines.map(l=>`<li><b>${l.name}</b>: ${l.number} (${l.hours})</li>`).join("")+"</ul><small>Helplines last verified "+d.helplines_last_verified+"</small>";
- h+="<p>Researcher: "+d.researcher_contact+"</p>"}
- h+='<p><button id="again">Talk to another persona</button></p>';$("deb").innerHTML=h;show("deb");$("again").onclick=()=>show("pick")}
-$("send").onclick=send;$("inp").onkeydown=e=>{if(e.key==="Enter")send()};$("stop").onclick=end;
+$("bar").onsubmit=async e=>{e.preventDefault();const t=$("inp").value.trim();if(!t||busy||!S)return;$("inp").value="";add("me",t);busy=true;$("send").disabled=true;
+ const sid=S.sid,ty=typing();let r;
+ try{const res=await post("/api/session/"+sid+"/message",{text:t});if(!res.ok)throw 0;r=await res.json()}
+ catch{ty.remove();add("ctx","Connection problem with the chat service. Please tell the researcher. You can still press Stop.");busy=false;$("send").disabled=false;return}
+ ty.remove();if(r.ended){return finish(sid,r.support)}
+ for(let i=0;i<r.messages.length;i++){const m=r.messages[i],ty2=typing();await sleep(m.delay_ms);ty2.remove();if(!S)return;add("them",m.text)}
+ busy=false;$("send").disabled=false;$("inp").focus()};
+async function end(){if(!S)return;const sid=S.sid;await post("/api/session/"+sid+"/stop");finish(sid,false)}
+async function finish(sid,support){clearInterval(tick);S=null;busy=false;$("send").disabled=false;
+ const r=await fetch("/api/session/"+sid+"/debrief");const d=await r.json();render(d,support,r.ok)}
+const lines=d=>`<ul class="lines">${d.helplines.map(l=>`<li><b>${esc(l.name)}</b><br>${esc(l.number)} <span class="small">· ${esc(l.hours)}</span></li>`).join("")}</ul><p class="small">Helplines last verified ${esc(d.helplines_last_verified)}</p>`;
+function render(d,support,ok){let h="";
+ if(!ok){h=`<h1>Session ended</h1><p>The debrief could not be built: ${esc(d.detail||"unknown error")}. Please tell the researcher.</p>`}
+ else{
+  if(support)h+=`<div class="card support"><b>This conversation has ended.</b><p>${esc(d.wellbeing_note)}</p>${lines(d)}</div>`;
+  h+=`<h1>Debrief</h1><p>This was a simulation of an online manipulator. Here is what you were exposed to.</p>`;
+  d.cards.forEach(c=>{h+=`<div class="card"><b>${esc(c.strategy)}</b><span class="badge">${c.primary_pct}%</span><div class="bar"><i style="width:${c.primary_pct}%"></i></div><p>${esc(c.description)}</p>${c.examples.length?`<p class="small">From your chat:</p><ul class="ex">${c.examples.map(e=>`<li>${esc(e)}</li>`).join("")}</ul>`:""}</div>`});
+  h+=`<div class="card"><p>${esc(d.offender_type)}</p><p>${esc(d.register)}</p><p class="small">${esc(d.note)}</p></div>`;
+  if(!support)h+=`<h2>Support</h2><div class="card">${esc(d.wellbeing_note)}${lines(d)}</div>`;
+  h+=`<p>Researcher: ${esc(d.researcher_contact)}</p>`}
+ h+=`<p><button class="btn outline" id="again">Talk to another persona</button></p>`;$("deb").innerHTML=h;show("deb");window.scrollTo(0,0);$("again").onclick=()=>show("pick")}
+$("stop").onclick=end;
 </script></body></html>

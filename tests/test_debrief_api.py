@@ -40,3 +40,13 @@ def test_api_end_to_end(tmp_path):
     assert c.post(f"/api/session/{sid}/stop").json()["ended"]
     assert c.get(f"/api/session/{sid}").json()["ended"]
     assert c.get("/").status_code == 200
+
+
+def test_llm_outage_is_503_and_session_stays_open(tmp_path):
+    class Down:
+        async def generate(self, *a, **k): raise ConnectionError("down")
+    c = TestClient(create_app(llm=Down(), db_path=tmp_path / "d.db", check_helplines=False))
+    sid = c.post("/api/session", json={"participant_id": "P", "persona_id": "alex", "consent": True, "age_confirmed": True}).json()["sid"]
+    assert c.post(f"/api/session/{sid}/message", json={"text": "hi"}).status_code == 503
+    assert not c.get(f"/api/session/{sid}").json()["ended"]
+    assert c.post(f"/api/session/{sid}/stop").json()["ended"]

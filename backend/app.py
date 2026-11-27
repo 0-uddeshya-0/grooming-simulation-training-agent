@@ -62,6 +62,9 @@ def create_app(cfg=None, llm=None, db_path=None, check_helplines=True) -> FastAP
             return await eng.handle_message(sid, r.text)
         except KeyError:
             raise HTTPException(404)
+        except Exception as e:   # model server down etc.: session stays open, UI shows a friendly message
+            store.event(sid, "llm_error", type(e).__name__)
+            raise HTTPException(503, "chat service unavailable")
 
     @app.post("/api/session/{sid}/stop")
     def stop(sid: str):

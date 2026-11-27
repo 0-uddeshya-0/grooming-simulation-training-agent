@@ -19,3 +19,5 @@
 | D-016 | English only (researcher decision). Filters EN only; audit's German patterns dropped | bilingual | accepted |
 | D-017 | Abliterated model required (researcher decision: persona must behave like a real attacker with no model refusals; limits enforced by code). No standard-model comparison added | non-abliterated model | accepted |
 | D-018 | Misuse controls: persona free-text fields length-limited/constrained; localhost bind + researcher session token; repo stays private; access-controlled release only | public repo | accepted |
+| D-019 | UI restyled in shadcn/ui design language (zinc tokens) in plain CSS; no React/Node build, to keep the no-Node run requirement. impeccable.style and a shadcn plugin were not reachable/available from the build container, so critique was done manually plus the built-in design skills | adopting React + shadcn | accepted |
+| D-020 | Model-server outage returns 503 and keeps the session open; UI shows a friendly message and Stop still works. Distress/under-18 endings show the support card first | silent 500 | accepted |
