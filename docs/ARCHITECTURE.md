@@ -1,7 +1,7 @@
 # ARCHITECTURE
 
 ```
-Browser UI (chat, timer, Stop) <-> FastAPI (127.0.0.1) <-> llama-server (GGUF, 127.0.0.1:8081)
+Browser UI (chat, Stop) <-> FastAPI (127.0.0.1) <-> llama-server (GGUF, 127.0.0.1:8081)
                                       |
                        SQLite (data/*.db, git-ignored)
                                       |
@@ -13,5 +13,5 @@ Browser UI (chat, timer, Stop) <-> FastAPI (127.0.0.1) <-> llama-server (GGUF, 1
 - **Safeguards module**: pure functions, no model calls; unit-tested; the actual guarantee for HR1/HR2/HR9.
 - **Debrief**: after the session, reads structured logs; computes percentages in code; the LLM (same GGUF, different prompt, loaded after chat ends; never two models at once) only phrases explanations and paraphrases examples from logged turns. Build fails if helplines are stale.
 - **Model-agnostic**: model, quant, sampling, template switches in `config/app.yaml`.
-- **Privacy**: no outbound network, pseudonymous IDs, `scripts/delete_participant` removes all rows. No raw attacker prompts exported; personas live in researcher-side `config/`.
+- **Privacy**: no outbound network, pseudonymous IDs, `DELETE /api/participant/{pid}` removes all rows. No raw attacker prompts exported; personas live in researcher-side `config/`.
 - **Mocking**: LLM client interface has a mock implementation so CI runs without weights.

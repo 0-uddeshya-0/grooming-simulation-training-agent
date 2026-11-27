@@ -15,7 +15,7 @@ Non-goals: general-purpose grooming tool; persona authoring UI for participants;
 | ID | Requirement | Enforced by |
 |----|-------------|-------------|
 | HR1 | Participants 18+ (age gate); personas age >= 19; no minor-related content | config validator at load + output filter |
-| HR2 | No explicit sexual content or image solicitation; ceiling = `non_explicit_onset` | output filter + stage gating |
+| HR2 | No explicit sexual content or image solicitation; ceiling = `CONTENT_CEILING` = no explicit sexual content | output filter + stage gating |
 | HR3 | Stop button and text trigger end chat instantly, no persona reply | backend kill endpoint + frontend |
 | HR4 | 45-min cap per persona conversation, enforced server-side (sweeper + per-request check). Visible timer removed by researcher decision (D-021) | backend clock |
 | HR5 | Fully local, no runtime network, no telemetry | llama-server bound to 127.0.0.1; no external calls |
@@ -25,7 +25,7 @@ Non-goals: general-purpose grooming tool; persona authoring UI for participants;
 | HR9 | Distress/self-harm/real-abuse disclosure interrupts to support screen | rule-based detector |
 
 ## 5. Participant flow
-Intro (framed study, withdrawal rights) -> consent -> age gate -> participant ID -> persona selection (multiple threads allowed) -> one-to-two sentence context line -> free chat (timer, Stop) -> debrief per conversation + combined summary: strategy cards (name, plain description, % exposure, 1-2 paraphrased examples), offender-type/register summary, helplines, wellbeing check, researcher contact.
+Intro (framed study, withdrawal rights) -> consent -> age gate -> participant ID -> persona selection (multiple threads allowed) -> one-to-two sentence context line -> free chat (Stop always visible, no timer shown) -> debrief per conversation + combined summary: strategy cards (name, plain description, % exposure, 1-2 paraphrased examples), offender-type/register summary, helplines, wellbeing check, researcher contact.
 
 ## 6. Success metrics
 See acceptance criteria (master prompt section 11): offline end-to-end on 16 GB; latency measured; zero ceiling breaches in red-team; repetition below thresholds; gradual adjacent-stage progression; scalar divergence between receptive/resistant profiles; debrief % equals logged tags; Stop/timer/distress tested; helplines current; docs consistent; README-only fresh-clone setup.
