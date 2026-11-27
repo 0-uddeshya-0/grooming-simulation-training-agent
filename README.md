@@ -8,25 +8,29 @@ A local, chat-based training agent that simulates a persuasive online manipulato
 16 GB RAM laptop (tested target: Ryzen AI 5 340 / Radeon 840M), ~8 GB free disk, Python 3.10+, internet **once** for setup (model + llama.cpp). Works offline afterwards.
 
 ## Setup and run (three commands)
-Windows (PowerShell) / Linux / macOS:
+**Windows (PowerShell)**: PowerShell blocks scripts by default, so run them like this:
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\setup.ps1
+.venv\Scripts\python scripts\download_model.py
+powershell -ExecutionPolicy Bypass -File scripts\run.ps1
+```
+**Linux / macOS**:
 ```bash
-scripts/setup.ps1                                   # Linux/macOS: scripts/setup.sh
-.venv\Scripts\python scripts\download_model.py      # Linux/macOS: .venv/bin/python scripts/download_model.py
-scripts/run.ps1                                     # Linux/macOS: scripts/run.sh
+scripts/setup.sh && .venv/bin/python scripts/download_model.py && scripts/run.sh
 ```
 1. **setup** creates `.venv`, installs pinned dependencies and downloads the official llama.cpp build (Vulkan on Windows/Linux) into `bin/`.
 2. **download_model** fetches the abliterated GGUF configured in `config/app.yaml` (default: Huihui-Qwen3-8B-abliterated-v2, Q4_K_M), shows the licence from the model card, asks you to confirm you read it, verifies the checksum and writes `models/MODEL_INFO.txt`. If the repo name has changed on Hugging Face: `python scripts/download_model.py --search "Huihui Qwen3 8B abliterated GGUF"`, then set `model.gguf_repo`.
-3. **run** checks everything (RAM, model, binary, helplines age, contact details), starts the model server, waits until it is ready, starts the app and opens http://localhost:8000. If the GPU/Vulkan start fails: `scripts/run.ps1 --cpu`.
+3. **run** checks everything (RAM, model, binary, helplines age, contact details), starts the model server, waits until it is ready, starts the app and opens http://localhost:8000. If the GPU/Vulkan start fails, add `--cpu` to the run command.
 
-Then measure the model on your laptop (not yet done, see `docs/MODEL_BAKEOFF.md`): start the app once, then `python scripts/benchmark.py --label "Qwen3-8B-abliterated Q4_K_M"`.
+Then measure the model on your laptop (not yet done, see `docs/MODEL_BAKEOFF.md`): with the model server running (the run script starts it), in another terminal: `.venv\Scripts\python scripts\benchmark.py --label "Qwen3-8B-abliterated Q4_K_M"` (Linux/macOS: `.venv/bin/python ...`).
 
 ## Running a session
 Give the participant an ID (e.g. `P001`), open the app, they consent and confirm 18+, pick a persona, chat. **Stop** (or typing `STOP`) ends a chat at once and shows the debrief. Each persona conversation can last up to 45 minutes (enforced by the server; no timer on screen). One researcher must be present or reachable.
 
-**Researcher log viewer** (separate terminal; never shown to participants): `scripts/researcher.ps1` / `scripts/researcher.sh` prints a private URL with a one-time token. It lists sessions, transcripts with the intended strategy tag per attacker message, blocked outputs and distress events, a tag-validity check (mark whether each tag matches the text), CSV export, and per-participant deletion.
+**Researcher log viewer** (separate terminal; never shown to participants): `powershell -ExecutionPolicy Bypass -File scripts\researcher.ps1` (or `scripts/researcher.sh`) prints a private URL with a one-time token. It lists sessions, transcripts with the intended strategy tag per attacker message, blocked outputs and distress events, a tag-validity check (mark whether each tag matches the text), CSV export, and per-participant deletion.
 
 ## Data and deletion
-`data/study.db` (SQLite, git-ignored, pseudonymous IDs only, no WAL files). Participants are told to email the researcher with their ID to have data deleted: use the viewer's delete button or `python scripts/delete_participant.py P001`. Delete everything: remove `data/`. Use full-disk encryption on the laptop.
+`data/study.db` (SQLite, git-ignored, pseudonymous IDs only, no WAL files). Participants are told to email the researcher with their ID to have data deleted: use the viewer's delete button or `.venv\Scripts\python scripts\delete_participant.py P001`. Delete everything: remove `data/`. Use full-disk encryption on the laptop.
 
 ## Ethics ceiling (approved by the ethics board)
 Permitted ("onset"): friendly compliments about personality or humour; mildly flirtatious or romantic language of the kind on mainstream messaging/dating apps; non-explicit questions about relationship status and feelings; steering from general to personal/emotional topics.

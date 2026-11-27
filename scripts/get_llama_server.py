@@ -25,7 +25,7 @@ try:
     else:
         tarfile.open(dest).extractall(out)
     dest.unlink()
-    (out / "LLAMA_INFO.txt").write_text(f"llama.cpp release {rel['tag_name']}\nasset {name}\nlicence: MIT (ggml-org/llama.cpp)\n")
+    (out / "LLAMA_INFO.txt").write_text(encoding="utf-8", data=f"llama.cpp release {rel['tag_name']}\nasset {name}\nlicence: MIT (ggml-org/llama.cpp)\n")
     exe = find_llama_server()
     if exe and platform.system() != "Windows":
         Path(exe).chmod(Path(exe).stat().st_mode | stat.S_IEXEC)

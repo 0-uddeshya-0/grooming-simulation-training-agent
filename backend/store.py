@@ -12,7 +12,7 @@ class Store:
         self.db.row_factory = sqlite3.Row
         self.db.execute("PRAGMA journal_mode=DELETE")
         self.db.execute("PRAGMA foreign_keys=ON")
-        self.db.executescript((ROOT / "docs" / "SCHEMA.sql").read_text())
+        self.db.executescript((ROOT / "docs" / "SCHEMA.sql").read_text(encoding="utf-8"))
 
     def q(self, sql, *a):
         cur = self.db.execute(sql, a)

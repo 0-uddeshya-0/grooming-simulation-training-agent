@@ -7,36 +7,49 @@ from . import constants as C
 MAX_STAGE = 6
 MIN_DWELL = {1: 3, 2: 4, 3: 3, 4: 3, 5: 4}
 ADV_THRESHOLD = {1: 0.35, 2: 0.4, 3: 0.45, 4: 0.5, 5: 0.6}
-ONSET_MIN_TURNS = 18        # stage 6 needs this many user turns, receptiveness >= 0.6, no resistance
+ONSET_MIN_TURNS = 14        # stage 6 needs this many user turns, receptiveness >= 0.6, no resistance
 ONSET_MAX_SHARE = 0.25      # stage 6 may occupy at most this share of turns
-ONSET_MIN_LEN = 6.0         # ...and the user must be genuinely engaged: EMA of words per message
-ONSET_MIN_DISCLOSURES = 3   # ...and have volunteered personal information several times
+ONSET_MIN_LEN = 4.5         # ...and the user must be genuinely engaged: EMA of words per message
+ONSET_MIN_DISCLOSURES = 2   # ...and have volunteered personal information several times
 STEP = 0.05
 INTENT = {
     1: "Come across as relatable: share small personal details that mirror their interests.",
     2: "Show warm interest; ask open questions about their life and feelings to learn what they need.",
-    3: "Casually find out how much privacy and oversight they have in their day-to-day life.",
+    3: "Casually learn about their day-to-day life: how they spend evenings and weekends, and who they usually spend time with.",
     4: "Offer something appealing: compliments, attention, or small shared plans.",
     5: "Deepen the bond: express closeness and a special connection between you two.",
     6: "Let the warmth turn lightly romantic: compliment their personality or humour, say you enjoy talking to them, and ask gentle, non-explicit questions about relationships and feelings. Stay light, never explicit.",
 }
 SECONDARY_EASE = "Ease off and keep it light and friendly."
 
-_RES = re.compile(r"\b(no|nope|stop|don'?t|dont|why (?:do|are) you|weird|creepy|uncomfortable|not comfortable|leave me|"
-                  r"none of your|i don'?t want|suspicious|who are you really|block)\b")
+_NEUTRALISE = re.compile(r"\b(no worries|no problem|no offense|don'?t know|dont know|can'?t stop (?:laughing|smiling)|not bad)\b")
+_RES = re.compile(r"\b(no|nope|nah|stop|don'?t|dont|why (?:do|are) you|weird|creepy|uncomfortable|not comfortable|leave me|"
+                  r"none of your|i don'?t want|suspicious|who are you really|block|rather not|prefer not|too personal|leave it|not sure i want)\b")
 _WARM = re.compile(r"\b(thanks|thank you|haha+|lol|love|nice|great|awesome|cool|sweet|glad|happy|same|me too|"
-                   r"yes|yeah|sure)\b|[:;]-?[)D]|\U0001F600|\U0001F60A|❤")
-_DISC = re.compile(r"\b(i live|i work|i study|my (?:mum|mom|dad|friend|friends|job|school|uni|name|girlfriend|boyfriend|"
-                   r"family|roommate|flat|house)|i feel|i'?m (?:lonely|sad|bored|stressed|tired|new)|i have|i don'?t have)\b")
+                   r"yes|yeah|sure)\b|[:;]-?[)D]|\U0001F600|\U0001F60A|\u2764")
+_BOUNDARY = re.compile(r"\b(i have a (?:boyfriend|girlfriend|partner|husband|wife)|i'?m (?:in a relationship|married|taken|engaged)|i'?m with someone)\b")
+# disclosure categories (the director note carries only these labels, never raw user text)
+_DISC = {
+    "work or study": re.compile(r"\b(i work|my job|i study|my (?:school|uni|university|college|boss)|i'?m (?:a|an) \w+)\b"),
+    "family": re.compile(r"\bmy (?:mum|mom|dad|family|sister|brother|parents)\b"),
+    "friends or partner": re.compile(r"\bmy (?:friends?|girlfriend|boyfriend|roommate|flatmate|partner)\b"),
+    "living situation": re.compile(r"\b(i live|my (?:flat|house|apartment|place)|i moved|i'?m new)\b"),
+    "feelings": re.compile(r"\bi (?:feel|felt)\b|\bi'?m (?:lonely|sad|bored|stressed|tired|anxious|happy|excited)\b"),
+    "interests": re.compile(r"\bi (?:love|like|enjoy|play|listen|watch|read)\b"),
+}
 
 
 def score_user(text: str) -> dict:
     t = text.lower().strip()
+    cats = [k for k, rx in _DISC.items() if rx.search(t)]
     words = len(t.split())
+    res = 1.0 if _RES.search(_NEUTRALISE.sub(" ", t)) else 0.0
     return {
-        "resistance": 1.0 if _RES.search(t) else 0.0,
+        "resistance": res,
+        "boundary": 1.0 if _BOUNDARY.search(t) else 0.0,
         "warmth": min(1.0, 0.5 * len(_WARM.findall(t)) + (0.3 if "?" in t else 0.0)),
-        "disclosure": min(1.0, 0.5 * len(_DISC.findall(t)) + (0.2 if words > 12 else 0.0)),
+        "disclosure": min(1.0, 0.5 * len(cats)),
+        "categories": cats,
         "short": 1.0 if words <= 3 else 0.0,
     }
 
@@ -71,9 +84,14 @@ class Director:
         self.max_stage = MAX_STAGE if (allow_onset and C.ALLOW_ONSET) else 5
         self.s = State(offender_type=bias["offender_type"], register=bias["register"])
 
-    def observe(self, user_text: str) -> dict:
-        """Update state from a user message. Returns the signal dict."""
+    def observe(self, user_text: str, pushed: bool = False) -> dict:
+        """Update state from a user message. `pushed`: the user tried to push past the limits; the message carries no
+        receptiveness or disclosure signal. Returns the signal dict."""
         s, sig = self.s, score_user(user_text)
+        if sig["boundary"] and s.stage >= 5:
+            sig["resistance"] = 1.0                       # "I have a boyfriend" at the intimate stages = a boundary
+        if pushed:
+            sig = {**sig, "warmth": 0.0, "disclosure": 0.0, "categories": [], "resistance": 0.0}
         raw = 0.5 * sig["warmth"] + 0.4 * sig["disclosure"] - 0.6 * sig["resistance"] - 0.1 * sig["short"]
         s.receptiveness = _clip(0.6 * s.receptiveness + 0.4 * _clip(0.5 + raw))
         s.resistance_streak = s.resistance_streak + 1 if sig["resistance"] else 0
@@ -85,7 +103,7 @@ class Director:
             s.facts.append(user_text.strip()[:80])
             s.facts = s.facts[-6:]
         # scalars (bounded steps)
-        if s.stage >= 4 and s.receptiveness > 0.55:
+        if s.stage >= 5 and s.receptiveness > 0.55:
             s.offender_type = _clip(s.offender_type + STEP)
         elif sig["disclosure"] > 0 and sig["warmth"] > 0:
             s.offender_type = _clip(s.offender_type - STEP)
@@ -125,15 +143,16 @@ class Director:
         if s.ease_turns:
             parts.append(SECONDARY_EASE)
         if s.facts:
-            parts.append("They have shared: " + "; ".join(s.facts[-3:]) + ".")
+            parts.append("They have mentioned their " + ", ".join(s.facts[-3:]) + "; pick up on it naturally.")
         if s.openers:
-            parts.append("Avoid starting like: " + " / ".join(s.openers[-3:]) + ".")
+            parts.append("Do not start your message like these: " + " | ".join('"' + o + '"' for o in s.openers[-3:]) + ".")
         return " ".join(parts)
 
     def hints(self) -> tuple[str, str]:
+        """Plain tone words for the prompt. 'Controlling' means taking the lead, never pressure (prohibited by the ceiling)."""
         s = self.s
-        reg = "passive and easygoing" if s.register < 0.33 else "pushy and insistent" if s.register > 0.66 else "balanced, gently persistent"
-        off = "seeks emotional closeness" if s.offender_type < 0.33 else "increasingly flirtatious" if s.offender_type > 0.66 else "mix of closeness and flirtiness"
+        reg = "easygoing, follows their lead" if s.register < 0.33 else "takes the lead and steers the conversation, but is never pushy" if s.register > 0.66 else "friendly and a little persistent about keeping the chat going"
+        off = "warm and interested in getting close" if (s.offender_type < 0.5 or s.stage < 5) else "warm, lightly flirtatious" if s.offender_type <= 0.66 else "openly flirtatious but never explicit"
         return reg, off
 
     def commit(self, reply: str):

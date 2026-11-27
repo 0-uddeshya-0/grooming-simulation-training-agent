@@ -7,9 +7,10 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 from .config import ROOT, HelplinesStale, load_app, load_helplines, load_personas
 from .debrief import build_debrief, build_summary
-from .engine import Engine
+from .engine import BusyError, Engine
 from .llm import LlamaServer, MockLLM
 from .store import Store
 
@@ -47,6 +48,7 @@ def create_app(cfg=None, llm=None, db_path=None, check_helplines=True) -> FastAP
 
     app = FastAPI(title="Training simulation", docs_url=None, redoc_url=None, lifespan=lifespan)
     app.state.engine = eng
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1", "testserver"])
 
     @app.get("/api/personas")
     def personas_list():
@@ -63,7 +65,7 @@ def create_app(cfg=None, llm=None, db_path=None, check_helplines=True) -> FastAP
             raise HTTPException(404, "unknown persona")
 
     @app.get("/api/session/{sid}")
-    def status(sid: str):
+    async def status(sid: str):
         s = store.session(sid)
         if not s:
             raise HTTPException(404)
@@ -77,12 +79,14 @@ def create_app(cfg=None, llm=None, db_path=None, check_helplines=True) -> FastAP
             return await eng.handle_message(sid, r.text)
         except KeyError:
             raise HTTPException(404)
+        except BusyError:
+            raise HTTPException(409, "still replying")
         except Exception as e:   # model server down etc.: session stays open, UI shows a friendly message
             store.event(sid, "llm_error", type(e).__name__)
             raise HTTPException(503, "chat service unavailable")
 
     @app.post("/api/session/{sid}/stop")
-    def stop(sid: str):
+    async def stop(sid: str):
         if not store.session(sid):
             raise HTTPException(404)
         return eng.stop(sid)

@@ -26,24 +26,31 @@ def sha256_file(p: Path) -> str:
 
 
 def download(url: str, dest: Path, size: int | None):
+    """Resumable download. Handles servers that ignore Range (HTTP 200: restart) and connections closed early (keep going)."""
     part = dest.with_suffix(dest.suffix + ".part")
-    for attempt in range(1, 8):
+    for attempt in range(1, 13):
         have = part.stat().st_size if part.exists() else 0
         if size and have >= size:
             break
         req = urllib.request.Request(url, headers={**UA, **({"Range": f"bytes={have}-"} if have else {})})
         try:
-            with urllib.request.urlopen(req, timeout=60) as r, open(part, "ab" if have else "wb") as f:
+            with urllib.request.urlopen(req, timeout=60) as r:
+                resume = have and r.status == 206
+                if have and not resume:
+                    have = 0                                      # server sent the whole file again
                 t0, got = time.time(), 0
-                while chunk := r.read(1 << 20):
-                    f.write(chunk); got += len(chunk)
-                    tot = have + got
-                    print(f"\r  {tot / 2**30:5.2f} / {(size or 0) / 2**30:5.2f} GB  {got / 2**20 / max(time.time() - t0, 1e-6):5.1f} MB/s", end="", flush=True)
-            print(); break
+                with open(part, "ab" if resume else "wb") as f:
+                    while chunk := r.read(1 << 20):
+                        f.write(chunk); got += len(chunk)
+                        print(f"\r  {(have + got) / 2**30:5.2f} / {(size or 0) / 2**30:5.2f} GB  {got / 2**20 / max(time.time() - t0, 1e-6):5.1f} MB/s", end="", flush=True)
+            print()
+            if not size or part.stat().st_size >= size:
+                break
+            print("  connection closed early; resuming")
         except Exception as e:
-            print(f"\n  interrupted ({e}); retry {attempt}/7 in 3 s (resumes where it stopped)"); time.sleep(3)
+            print(f"\n  interrupted ({e}); retry {attempt}/12 in 3 s (resumes where it stopped)"); time.sleep(3)
     else:
-        sys.exit("Download failed. Check your connection and run the script again; it resumes.")
+        sys.exit("Download did not complete. Check your connection and run the script again; it resumes.")
     part.replace(dest)
 
 
@@ -82,7 +89,7 @@ def main():
     got = sha256_file(dest)
     if want and got != want:
         dest.unlink(); sys.exit("Checksum mismatch: file removed. Run again.")
-    (ROOT / "models" / "MODEL_INFO.txt").write_text(
+    (ROOT / "models" / "MODEL_INFO.txt").write_text(encoding="utf-8", data=
         f"repo: {repo}\nfile: {fname}\nquant: {quant}\nsize_bytes: {dest.stat().st_size}\nsha256: {got}\n"
         f"sha256_verified_against_huggingface: {bool(want)}\nlicence: {lic}\nmodel_card: https://huggingface.co/{repo}\n")
     print(f"OK  {dest}\n    sha256 {'verified' if want else 'computed (none published)'}: {got}\nNext: run the app (scripts/run.sh | scripts\\run.ps1).")

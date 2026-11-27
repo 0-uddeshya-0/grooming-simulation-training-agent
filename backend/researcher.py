@@ -46,7 +46,7 @@ def create_researcher_app(db_path=None, token: str | None = None) -> FastAPI:
             return r
         if not secrets.compare_digest(rt or "", app.state.token):
             return HTMLResponse("<h3>Researcher viewer</h3><p>Open the URL printed by scripts/researcher (it contains the token).</p>", 401)
-        return HTMLResponse((Path(__file__).parent / "researcher_ui" / "index.html").read_text())
+        return HTMLResponse((Path(__file__).parent / "researcher_ui" / "index.html").read_text(encoding="utf-8"))
 
     @app.get("/api/r/sessions", dependencies=[Depends(auth)])
     def sessions():

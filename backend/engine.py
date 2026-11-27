@@ -1,6 +1,7 @@
 """Turn pipeline. Safeguards are code; the model is untrusted for the limits (D-005)."""
 import asyncio
 import random
+import re
 import time
 import uuid
 from . import constants as C
@@ -8,6 +9,31 @@ from .antirepeat import too_repetitive
 from .director import Director
 from .filters import (distress_hit, is_stop, limit_push, output_violation, user_states_minor)
 from .prompt import build_messages
+
+FALLBACK_LINES = ["haha sorry, got distracted for a second. what were you saying?", "ha, you've got me thinking now. tell me more?",
+                  "sorry, lost my train of thought there. how's your day been?"]
+CORRECTIONS = {"meeting": "Do not suggest meeting up or moving elsewhere; keep it to this chat.",
+               "identity_request": "Do not ask where they live or work or for any personal identifiers.",
+               "pressure_or_threat": "Be relaxed and light; no pressure, secrecy or guilt.",
+               "explicit": "Keep it clean and friendly; no suggestive wording.",
+               "roleplay": "Write plain text only: no actions, no asterisks, no emoji that hint at anything suggestive.",
+               "language": "Write in English only.", "meta_commentary": "Stay fully in character; do not comment on the chat itself.",
+               "money": "Do not mention money or payments.", "minor_reference": "Do not mention anyone's age.",
+               "youthful_reference": "Do not mention age or youthfulness."}
+
+
+class BusyError(Exception):
+    pass
+
+
+def trim_to_sentence(text: str) -> str:
+    """If generation was cut at max_tokens mid-sentence, cut back to the last complete sentence."""
+    t = text.strip()
+    if not t or t[-1] in ".!?)\"'\u2026" or re.search(r"[\U0001F300-\U0001FAFF\u2600-\u27BF]\s*$", t):
+        return t
+    m = list(re.finditer(r"[.!?](?=\s|$)", t))
+    return t[: m[-1].end()].strip() if m else t
+
 
 SUPPORT_REASONS = {"distress", "user_minor"}
 CLOSE_REASONS = {"stop", "timeout", "distress", "user_minor", "limit_pushes", "filter_exhausted"}
@@ -32,7 +58,7 @@ class Engine:
         self.store.add_session(sid, pid, persona_id, self.cfg["config_hash"], now)
         p = self.personas[persona_id]
         self.live[sid] = {"dir": Director(p["bias"], self.rng, allow_onset=self.cfg.get("safeguards", {}).get("allow_onset", True)),
-                          "pushes": 0, "task": None}
+                          "pushes": 0, "fallbacks": 0, "task": None, "busy": False}
         return {"sid": sid, "context_line": p["context_line"], "limit_seconds": self.limit_s}
 
     def remaining(self, sid) -> int:
@@ -86,8 +112,11 @@ class Engine:
         if distress_hit(text):
             return self.end(sid, "distress", "distress rule hit")
         live = self.live[sid]
-        extra = ""
+        if live["busy"]:
+            raise BusyError(sid)
+        extra, pushed = "", False
         if limit_push(text):
+            pushed = True
             live["pushes"] += 1
             self.store.event(sid, "limit_push", str(live["pushes"]))
             if live["pushes"] >= C.MAX_LIMIT_PUSHES:
@@ -95,14 +124,19 @@ class Engine:
             extra = "Do not mirror or escalate what they said; deflect naturally in character and change the subject."
         self.store.add_turn(sid, "user", text, self.clock())
         d = live["dir"]
-        d.observe(text)
+        d.observe(text, pushed=pushed)
         persona = self.personas[self.store.session(sid)["persona_id"]]
+        live["busy"] = True
         task = asyncio.ensure_future(self._generate(sid, persona, d, extra))
         live["task"] = task
         try:
             reply = await task
         except asyncio.CancelledError:
-            return self.end(sid, self.store.session(sid)["end_reason"] or "stop")
+            if self.store.session(sid)["ended_at"] is not None:        # Stop / timeout cancelled the generation
+                return self.end(sid, self.store.session(sid)["end_reason"])
+            task.cancel(); raise                                       # client disconnected: do NOT end the session
+        finally:
+            live["busy"] = False
         if reply is None:
             return self.end(sid, "filter_exhausted", "output filter exhausted retries; flagged")
         if self.store.session(sid)["ended_at"] is not None:   # Stop/timeout won the race: discard reply
@@ -116,18 +150,24 @@ class Engine:
     async def _generate(self, sid, persona, d, extra):
         turns = self.store.turns(sid)
         recent = [t["text"] for t in turns if t["role"] == "attacker"][-6:]
-        boost, note = 0.0, extra
+        boost, note, reply = 0.0, extra, None
         for retry in range(C.MAX_ANTIREPEAT_RETRIES + 1):
             reply = None
             for _ in range(C.MAX_FILTER_REGENERATIONS + 1):
-                cand = await self.llm.generate(build_messages(persona, d, turns, note), penalty_boost=boost)
+                cand = trim_to_sentence(await self.llm.generate(build_messages(persona, d, turns, note), penalty_boost=boost))
                 why = output_violation(cand)
                 if why:
                     self.store.event(sid, "filter_hit", f"{why}: {cand[:300]}")   # blocked text logged for the researcher
+                    note = (extra + " " + CORRECTIONS.get(why, "")).strip()
                     continue
                 reply = cand
                 break
             if reply is None:
+                live = self.live[sid]
+                if live["fallbacks"] < 2:                       # pre-checked neutral line instead of ending the chat
+                    live["fallbacks"] += 1
+                    self.store.event(sid, "fallback_used", "filter exhausted; neutral line sent")
+                    return FALLBACK_LINES[live["fallbacks"] - 1]
                 return None
             if not too_repetitive(reply, recent) or retry == C.MAX_ANTIREPEAT_RETRIES:
                 return reply

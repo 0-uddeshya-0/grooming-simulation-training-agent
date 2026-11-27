@@ -29,3 +29,19 @@ def test_helplines_stale_and_fresh():
     assert len(h["helplines"]) == 6 and all(x["number"] for x in h["helplines"])
     with pytest.raises(HelplinesStale): load_helplines(today=dt.date(2027, 2, 1))     # > 60 days
     assert load_helplines(today=dt.date(2027, 1, 20))                                  # 54 days: ok
+
+
+def test_helplines_umlauts_and_dash_decode_correctly():
+    h = load_helplines(today=dt.date(2026, 12, 1))
+    names = " ".join(x["name"] for x in h["helplines"]) + " ".join(x["hours"] for x in h["helplines"])
+    assert "Männern" in names and "9:00–14:00" in names
+
+
+def test_find_model_pins_and_refuses_ambiguity(tmp_path, monkeypatch):
+    import backend.config as C
+    monkeypatch.setattr(C, "ROOT", tmp_path); (tmp_path / "models").mkdir()
+    assert C.find_model({}) is None
+    (tmp_path / "models" / "a.gguf").write_text("x"); assert C.find_model({}).name == "a.gguf"      # single file: fine
+    (tmp_path / "models" / "b.gguf").write_text("x"); assert C.find_model({}) is None                # ambiguous: refuse
+    assert C.find_model({"model": {"gguf_file": "b.gguf"}}).name == "b.gguf"                          # config pin
+    (tmp_path / "models" / "MODEL_INFO.txt").write_text("repo: r\nfile: a.gguf\n"); assert C.find_model({}).name == "a.gguf"   # download pin

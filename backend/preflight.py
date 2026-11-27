@@ -2,7 +2,7 @@
 import os
 import shutil
 import sys
-from .config import ROOT, ConfigError, HelplinesStale, load_app, load_helplines, load_personas
+from .config import ROOT, ConfigError, HelplinesStale, find_model, load_app, load_helplines, load_personas
 
 
 def ram_gb() -> float:
@@ -25,14 +25,6 @@ def find_llama_server(binary: str = "llama-server"):
     return shutil.which(binary)
 
 
-def find_model(cfg):
-    f = cfg["model"].get("gguf_file")
-    if f and (ROOT / "models" / f).exists():
-        return ROOT / "models" / f
-    g = sorted((ROOT / "models").glob("*.gguf"))
-    return g[0] if g else None
-
-
 def check(need_model=True) -> list[str]:
     errs = []
     try:
@@ -48,7 +40,9 @@ def check(need_model=True) -> list[str]:
         errs.append(f"RAM: {r:.1f} GB found; need at least {cfg['limits']['min_free_ram_gb'] + 2} GB.")
     if need_model:
         if not find_model(cfg):
-            errs.append("MODEL: no .gguf in models/. Run: python scripts/download_model.py")
+            n = len(list((ROOT / "models").glob("*.gguf")))
+            errs.append("MODEL: no .gguf in models/. Run: python scripts/download_model.py" if not n else
+                        f"MODEL: {n} .gguf files in models/ and none is pinned. Set model.gguf_file in config/app.yaml (or re-run download_model.py).")
         if not find_llama_server(cfg["llama_server"]["binary"]):
             errs.append("BINARY: llama-server not found. Run: python scripts/get_llama_server.py "
                         "(or download llama.cpp from https://github.com/ggml-org/llama.cpp/releases and add it to PATH)")

@@ -60,7 +60,7 @@ async def main(a):
            f"- peak RAM: record manually (Task Manager / htop) during this run\n- sample transcript (hand-score consistency & note adherence):\n")
     out += "\n".join(f"    [{p}] {atts[0]} / {atts[-1]}" for p, atts in rows[::a.seeds])
     f = ROOT / "docs" / "MODEL_BAKEOFF.md"
-    f.write_text((f.read_text() if f.exists() else "# MODEL_BAKEOFF\nMeasured on the study laptop. No model is claimed best without these numbers.\n") + out + "\n")
+    f.write_text((f.read_text(encoding="utf-8") if f.exists() else "# MODEL_BAKEOFF\nMeasured on the study laptop. No model is claimed best without these numbers.\n") + out + "\n")
     print(out)
 
 p = argparse.ArgumentParser(); p.add_argument("--label", required=True); p.add_argument("--seeds", type=int, default=3); p.add_argument("--persona", default="alex")

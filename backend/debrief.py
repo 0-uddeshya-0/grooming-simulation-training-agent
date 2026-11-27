@@ -8,7 +8,7 @@ from .filters import output_violation
 DESCRIPTIONS = {
     "Identity manipulation": "Presenting a persona designed to seem relatable, similar to you or trustworthy.",
     "Rapport-building (victim assessment)": "Friendly interest and questions that build comfort while learning about your life, feelings and needs.",
-    "Risk assessment": "Casually finding out how private the conversation is and who might notice or intervene.",
+    "Risk assessment": "Casually learning about your routine and surroundings, which can reveal how private the conversation is and who might notice.",
     "Enticement": "Offering attention, compliments or small rewards to make continuing the contact attractive.",
     "Relationship-building": "Deepening closeness and creating a sense of a special connection.",
     "Sexualisation (onset)": "Gradually steering topics toward intimacy and testing reactions (never explicit in this study).",
@@ -20,12 +20,13 @@ def _band(x, lo, hi):
 
 
 def offender_summary(v: float) -> str:
-    return (f"Offender-type position {v:.2f} on a 0-1 scale (0 = primarily intimacy-seeking, 1 = primarily sexually "
-            f"preoccupied): {_band(v, 'closer to intimacy-seeking', 'closer to sexually preoccupied')}. (Moosburner et al., 2025)")
+    return (f"The simulated offender's style sat at {v:.2f} on a 0-1 scale (0 = primarily intimacy-seeking, 1 = primarily sexually "
+            f"preoccupied): {_band(v, 'closer to intimacy-seeking', 'closer to sexually preoccupied')}. It adapted to how the conversation went, "
+            f"not to anything you did wrong. (Moosburner et al., 2025)")
 
 
 def register_summary(v: float) -> str:
-    return (f"Register position {v:.2f} (0 = passive, 1 = controlling): "
+    return (f"The simulated offender's register sat at {v:.2f} (0 = passive, 1 = controlling): "
             f"{_band(v, 'mostly passive', 'mostly controlling')}. Control colours how every strategy is expressed. (Barber & Bettez, 2021)")
 
 

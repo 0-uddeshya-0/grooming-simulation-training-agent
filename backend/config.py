@@ -20,12 +20,31 @@ class HelplinesStale(ConfigError):
     pass
 
 
+def find_model(cfg: dict | None = None):
+    """Pinned model: config model.gguf_file, else the file recorded by download_model.py (MODEL_INFO.txt), else the only .gguf."""
+    md = ROOT / "models"
+    pins = []
+    if cfg and cfg.get("model", {}).get("gguf_file"):
+        pins.append(cfg["model"]["gguf_file"])
+    info = md / "MODEL_INFO.txt"
+    if info.exists():
+        m = re.search(r"^file:\s*(.+)$", info.read_text(encoding="utf-8"), re.M)
+        if m:
+            pins.append(m.group(1).strip())
+    for f in pins:
+        if (md / f).exists():
+            return md / f
+    ggufs = sorted(md.glob("*.gguf"))
+    return ggufs[0] if len(ggufs) == 1 else None
+
+
 def load_app(path: Path = ROOT / "config" / "app.yaml") -> dict:
-    cfg = yaml.safe_load(Path(path).read_text())
+    cfg = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
     lim = cfg.setdefault("limits", {})
     mins = cfg.get("study", {}).get("max_session_minutes", lim.get("max_session_minutes", 45))
     lim["max_session_seconds"] = min(int(mins) * 60, C.MAX_SESSION_SECONDS)
-    cfg["config_hash"] = hashlib.sha256(Path(path).read_bytes()).hexdigest()[:12]
+    m = find_model(cfg)
+    cfg["config_hash"] = hashlib.sha256(Path(path).read_bytes() + (m.name.encode() if m else b"")).hexdigest()[:12]   # config + model file
     return cfg
 
 
@@ -57,7 +76,7 @@ def validate_persona(p: dict) -> dict:
 def load_personas(d: Path = ROOT / "config" / "personas") -> dict:
     out = {}
     for f in sorted(Path(d).glob("*.yaml")):
-        p = validate_persona(yaml.safe_load(f.read_text()))
+        p = validate_persona(yaml.safe_load(f.read_text(encoding="utf-8")))
         out[p["id"]] = p
     if not out:
         raise ConfigError("no personas found")
@@ -66,7 +85,7 @@ def load_personas(d: Path = ROOT / "config" / "personas") -> dict:
 
 def load_helplines(path: Path = ROOT / "config" / "helplines.yaml", max_age_days: int | None = None,
                    today: dt.date | None = None) -> dict:
-    h = yaml.safe_load(Path(path).read_text())
+    h = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
     lv = h["last_verified"]
     if isinstance(lv, str):
         lv = dt.date.fromisoformat(lv)
