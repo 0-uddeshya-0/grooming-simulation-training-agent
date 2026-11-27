@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Training system study</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,sans-serif;background:#e9edef;color:#111}
+.wrap{max-width:560px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;background:#fff}
+.pad{padding:20px}h1{font-size:20px}button{font:inherit;padding:10px 16px;border-radius:8px;border:0;background:#2563eb;color:#fff;cursor:pointer}
+button.sec{background:#e5e7eb;color:#111}input[type=text]{font:inherit;padding:10px;border:1px solid #ccc;border-radius:8px;width:100%}
+#top{display:flex;align-items:center;gap:8px;padding:10px 14px;background:#075e54;color:#fff}#top b{flex:1}
+#stop{background:#dc2626}#msgs{flex:1;overflow:auto;padding:12px;background:#efeae2;display:flex;flex-direction:column;gap:6px}
+.m{max-width:78%;padding:8px 10px;border-radius:10px;font-size:15px;line-height:1.35;word-wrap:break-word}
+.me{align-self:flex-end;background:#d9fdd3}.them{align-self:flex-start;background:#fff}.ctx{align-self:center;font-size:13px;color:#555;background:#fff8;padding:6px 10px;border-radius:8px}
+.t{font-size:11px;color:#777;text-align:right}#bar{display:flex;gap:8px;padding:10px;border-top:1px solid #ddd}
+.card{border:1px solid #ddd;border-radius:10px;padding:12px;margin:10px 0}.hide{display:none}.typing{font-style:italic;color:#666}
+</style></head><body><div class="wrap">
+<div id="intro" class="pad"><h1>Study: a training system that protects against manipulation</h1>
+<p>You will chat with simulated contacts. You may withdraw at any time, for any reason, and request deletion of your data. Everything runs locally on this computer.</p>
+<p>A <b>Stop</b> button is always visible. A researcher is present or reachable.</p>
+<p><label><input type="checkbox" id="c1"> I have read the information and consent to take part.</label></p>
+<p><label><input type="checkbox" id="c2"> I confirm that I am 18 or older.</label></p>
+<p>Participant ID (given by the researcher)<br><input type="text" id="pid"></p>
+<button id="go">Continue</button><p id="err" style="color:#b91c1c"></p></div>
+<div id="pick" class="pad hide"><h1>Choose who to chat with</h1><div id="plist"></div></div>
+<div id="chat" class="hide" style="flex:1;display:none;flex-direction:column">
+<div id="top"><b id="who"></b><span id="timer"></span><button id="stop">Stop</button></div>
+<div id="msgs"></div><div id="bar"><input type="text" id="inp" placeholder="Type a message" autocomplete="off"><button id="send">Send</button></div></div>
+<div id="deb" class="pad hide"></div></div>
+<script>
+const $=id=>document.getElementById(id);let S=null,pid="",left=0,tick=null,busy=false,debs=[];
+const show=id=>{["intro","pick","chat","deb"].forEach(x=>{$(x).style.display=x===id?(x==="chat"?"flex":"block"):"none"})};
+const api=async(p,o)=>{const r=await fetch(p,o&&{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(o)});return r.json()};
+show("intro");
+$("go").onclick=async()=>{pid=$("pid").value.trim();if(!$("c1").checked||!$("c2").checked||!pid){$("err").textContent="Please tick both boxes and enter your participant ID.";return}
+ const ps=await (await fetch("/api/personas")).json();$("plist").innerHTML="";
+ ps.forEach(p=>{const b=document.createElement("button");b.textContent="Chat with "+p.name;b.style.margin="6px";b.onclick=()=>start(p);$("plist").appendChild(b)});show("pick")};
+async function start(p){const r=await fetch("/api/session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({participant_id:pid,persona_id:p.id,consent:true,age_confirmed:true})});
+ if(!r.ok){$("err").textContent="Could not start.";show("intro");return}S=await r.json();S.name=p.name;left=S.limit_seconds;$("who").textContent=p.name;$("msgs").innerHTML="";
+ add("ctx",S.context_line);show("chat");clearInterval(tick);tick=setInterval(()=>{left=Math.max(0,left-1);$("timer").textContent=Math.floor(left/60)+":"+String(left%60).padStart(2,"0");if(left<=0)end()},1000)}
+const add=(c,t)=>{const d=document.createElement("div");d.className="m "+c;d.textContent=t;if(c!=="ctx"){const s=document.createElement("div");s.className="t";s.textContent=new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});d.appendChild(s)}$("msgs").appendChild(d);$("msgs").scrollTop=1e9;return d};
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function send(){const t=$("inp").value.trim();if(!t||busy||!S)return;$("inp").value="";add("me",t);busy=true;
+ const ty=add("them typing","typing…");const r=await api("/api/session/"+S.sid+"/message",{text:t});
+ if(r.ended){ty.remove();return finish()}
+ for(const m of r.messages){await sleep(m.delay_ms);ty.remove();add("them",m.text);if(m!==r.messages[r.messages.length-1]){ty.textContent="typing…";$("msgs").appendChild(ty)}}busy=false}
+async function end(){if(!S)return;await fetch("/api/session/"+S.sid+"/stop",{method:"POST"});finish()}
+async function finish(){clearInterval(tick);const sid=S.sid;S=null;busy=false;
+ const d=await (await fetch("/api/session/"+sid+"/debrief")).json();debs.push(d);render(d)}
+function render(d){let h="<h1>Debrief</h1><p>This was a simulation of an online manipulator. Here is what you were exposed to.</p>";
+ if(d.detail){h+="<p>"+d.detail+"</p>"}else{
+ d.cards.forEach(c=>{h+=`<div class="card"><b>${c.strategy}</b> — ${c.primary_pct}% of messages<br>${c.description}<ul>${c.examples.map(e=>"<li>"+e+"</li>").join("")}</ul></div>`});
+ h+=`<p>${d.offender_type}</p><p>${d.register}</p><p><small>${d.note}</small></p>`;
+ h+="<h2>Support</h2><p>"+d.wellbeing_note+"</p><ul>"+d.helplines.map(l=>`<li><b>${l.name}</b>: ${l.number} (${l.hours})</li>`).join("")+"</ul><small>Helplines last verified "+d.helplines_last_verified+"</small>";
+ h+="<p>Researcher: "+d.researcher_contact+"</p>"}
+ h+='<p><button id="again">Talk to another persona</button></p>';$("deb").innerHTML=h;show("deb");$("again").onclick=()=>show("pick")}
+$("send").onclick=send;$("inp").onkeydown=e=>{if(e.key==="Enter")send()};$("stop").onclick=end;
+</script></body></html>

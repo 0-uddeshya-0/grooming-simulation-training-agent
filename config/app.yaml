@@ -20,3 +20,7 @@ safeguards:
   antirepeat_max_retries: 2
 stop_text_triggers: ["STOP", "STOPP", "ABBRUCH"]   # whole-message, case-insensitive only
 network: {allow_outbound: false}
+study:
+  consent_version: v1
+  researcher_contact: "REPLACE: researcher name and email"   # shown in debrief
+  wellbeing_note: "If anything in this conversation left you unsettled, please talk to the researcher present or use a support line below."
