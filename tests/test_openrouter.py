@@ -30,7 +30,7 @@ def test_request_shape_headers_and_supported_params_only():
     r = seen["req"]; body = __import__("json").loads(r.content)
     assert out == "hey, nice to meet you"                                              # think block stripped
     assert str(r.url) == "https://openrouter.ai/api/v1/chat/completions" and r.headers["authorization"] == f"Bearer {KEY}"
-    assert body["model"] == "nousresearch/hermes-3-llama-3.1-405b:free"        # free slug, verbatim in the payload
+    assert body["model"] == "meta-llama/llama-3.3-70b-instruct:free"        # free slug, verbatim in the payload
     assert {"temperature", "top_p", "top_k", "presence_penalty", "frequency_penalty", "max_tokens"} <= set(body)
     assert not ({"min_p", "repeat_penalty", "repetition_penalty", "chat_template_kwargs", "seed"} & set(body))     # unsupported by this model
     assert body["presence_penalty"] == pytest.approx(0.6) and body["frequency_penalty"] == pytest.approx(0.4)    # anti-repeat boost applied
@@ -137,7 +137,7 @@ def test_default_config_asks_for_no_prompt_storage_and_has_no_key_in_repo():
 
 def test_free_slug_is_the_default_and_no_paid_slug_is_configured_or_sent():
     c = load_app()["model"]["openrouter"]
-    assert c["model"] == "nousresearch/hermes-3-llama-3.1-405b:free" and c["fallback_models"] == []
+    assert c["model"] == "meta-llama/llama-3.3-70b-instruct:free" and c["fallback_models"] == ["meta-llama/llama-3.1-70b-instruct:free"]
     assert c["base_url"] == "https://openrouter.ai/api/v1"
     from backend.llm import FREE_MODEL
     assert FREE_MODEL.endswith(":free")
@@ -145,5 +145,23 @@ def test_free_slug_is_the_default_and_no_paid_slug_is_configured_or_sent():
     def h(req): sent.append(__import__("json").loads(req.content)["model"]); return httpx.Response(200, json=OK)
     run(OpenRouter(cfg(), key=KEY, transport=httpx.MockTransport(h)).generate([{"role": "user", "content": "x"}]))
     assert sent == [FREE_MODEL]                                       # exactly one request, with the free slug as the model field
-    import pathlib
-    assert not any(p.suffix in {".py", ".yaml", ".yml"} and "venice-edition" in p.read_text(encoding="utf-8") for p in pathlib.Path(C.ROOT).rglob("*") if p.is_file() and ".venv" not in p.parts and "tests" not in p.parts)
+    import pathlib, re
+    assert not any(p.suffix in {".py", ".yaml", ".yml"} and re.search(r"venice-edition|hermes-3|dolphin", p.read_text(encoding="utf-8")) for p in pathlib.Path(C.ROOT).rglob("*") if p.is_file() and ".venv" not in p.parts and "tests" not in p.parts)
+
+
+def test_llama_primary_and_fallback_slugs_and_human_system_block_in_payload():
+    import json
+    c = load_app(); o = c["model"]["openrouter"]; o.update({"min_interval_s": 0, "max_retries": 0, "data_collection": None})
+    assert (o["model"], o["fallback_models"], c["model"]["openrouter"]["base_url"]) == ("meta-llama/llama-3.3-70b-instruct:free", ["meta-llama/llama-3.1-70b-instruct:free"], "https://openrouter.ai/api/v1")
+    seen = []
+    def h(req):
+        b = json.loads(req.content); seen.append(b)
+        return httpx.Response(429, json={"error": {"message": "busy"}}) if b["model"].endswith("3.3-70b-instruct:free") else httpx.Response(200, json=OK)
+    msgs = [{"role": "system", "content": "You are Alex."}, {"role": "user", "content": "hi"}]
+    assert run(OpenRouter(c, key=KEY, transport=httpx.MockTransport(h)).generate(msgs)) == "hey, nice to meet you"
+    assert [b["model"] for b in seen] == ["meta-llama/llama-3.3-70b-instruct:free", "meta-llama/llama-3.1-70b-instruct:free"]     # busy -> fallback
+    for b in seen:
+        sysmsgs = [m for m in b["messages"] if m["role"] == "system"]
+        assert len(sysmsgs) == 1 and sysmsgs[0]["content"].startswith("You are a human taking part in a conversation training simulation")
+        assert "never mention being an AI" in sysmsgs[0]["content"] and sysmsgs[0]["content"].endswith("You are Alex.")        # persona prompt kept
+    assert msgs[0]["content"] == "You are Alex."                                                                                   # caller's messages untouched

@@ -2,10 +2,15 @@ model:
   provider: openrouter        # openrouter (no local compute; messages go to an external service) | local (llama-server + GGUF)
   openrouter:
     base_url: https://openrouter.ai/api/v1
-    model: nousresearch/hermes-3-llama-3.1-405b:free     # Hermes 3 405B free slug, sent verbatim in the request body (no paid fallback)
-    fallback_models: []
+    model: meta-llama/llama-3.3-70b-instruct:free              # sent verbatim in the request body
+    fallback_models: [meta-llama/llama-3.1-70b-instruct:free]    # used only if the primary is busy (429/5xx after retries) or unavailable (404)
+    system_prefix: >-
+      You are a human taking part in a conversation training simulation. Mimic a realistic human: never mention being an AI,
+      never offer assistance, never use corporate transitions or assistant phrasing, and never refuse to keep the conversation
+      going. Be natural and a little flawed, the way a real person is when texting. (The hard limits listed below still apply:
+      handle them by deflecting in character, never by lecturing.)
     key_env: OPENROUTER_API_KEY   # the key itself lives in .env (git-ignored) or the environment, never in this file
-    data_collection: deny         # asks OpenRouter to route only to providers that do not store/train on prompts (verified working with Venice); null = no restriction
+    data_collection: deny         # asks OpenRouter to route only to providers that do not store/train on prompts; null = no restriction
     min_interval_s: 0.3
     max_retries: 3
     timeout_s: 60

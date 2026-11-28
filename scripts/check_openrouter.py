@@ -14,12 +14,13 @@ log = []
 async def on_request(req): log.append({"url": str(req.url), "body": json.loads(req.content)})
 async def on_response(resp): await resp.aread(); log[-1].update(status=resp.status_code, text=resp.text[:300])
 async def main():
-    llm = OpenRouter(cfg); llm.retries = 0
+    llm = OpenRouter(cfg); llm.retries = 0      # one attempt per model, so fallbacks show up as separate requests
     llm._client = lambda: httpx.AsyncClient(timeout=60, event_hooks={"request": [on_request], "response": [on_response]})
     try:
         print("reply:", repr(await llm.generate([{"role": "user", "content": "Hello! Introduce yourself in one short sentence."}])))
     except LLMError as e:
         print("FAILED:", e)
     for e in log:
-        print(f"POST {e['url']}\n  model in JSON body : {e['body']['model']!r}\n  HTTP status        : {e.get('status')}\n  response           : {e.get('text')}")
+        sysm = next((m["content"] for m in e["body"]["messages"] if m["role"] == "system"), "")
+        print(f"POST {e['url']}\n  model in JSON body : {e['body']['model']!r}\n  system block sent  : {sysm[:70]!r}...\n  HTTP status        : {e.get('status')}\n  response           : {e.get('text')}")
 asyncio.run(main())

@@ -24,7 +24,7 @@ class Reply(str):
         return o
 
 
-FREE_MODEL = "nousresearch/hermes-3-llama-3.1-405b:free"     # default; sent verbatim as the "model" field
+FREE_MODEL = "meta-llama/llama-3.3-70b-instruct:free"     # default if config omits it; sent verbatim as the "model" field
 
 
 class OpenRouter:
@@ -37,6 +37,7 @@ class OpenRouter:
         self.key = key or get_openrouter_key(o.get("key_env", "OPENROUTER_API_KEY"))
         self.s = cfg["sampling"]
         self.dc = o.get("data_collection")
+        self.prefix = " ".join((o.get("system_prefix") or "").split())
         self.min_interval, self.retries = float(o.get("min_interval_s", 0.3)), int(o.get("max_retries", 3))
         self.timeout = float(o.get("timeout_s", 60))
         self.transport, self._lock, self._last, self._ok_until = transport, asyncio.Lock(), 0.0, 0.0
@@ -63,7 +64,16 @@ class OpenRouter:
         self._ok_until = time.time() + 60 if ok else 0.0
         return ok
 
+    def _with_prefix(self, messages):
+        """Inject the human-simulation block into the request itself (merged into the first system message)."""
+        if not self.prefix:
+            return messages
+        if messages and messages[0].get("role") == "system":
+            return [{"role": "system", "content": self.prefix + "\n\n" + messages[0]["content"]}, *messages[1:]]
+        return [{"role": "system", "content": self.prefix}, *messages]
+
     def _body(self, model, messages, boost, max_tokens=None):
+        messages = self._with_prefix(messages)
         s = self.s
         body = {"model": model, "messages": messages, "temperature": s["temperature"], "max_tokens": min(max_tokens or s["max_tokens"], s["max_tokens"]), "stream": False}
         for k in ("top_p", "top_k"):
