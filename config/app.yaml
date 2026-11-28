@@ -1,19 +1,19 @@
 model:
-  provider: openrouter        # openrouter (no local compute; messages go to an external service) | local (llama-server + GGUF)
-  openrouter:
-    base_url: https://openrouter.ai/api/v1
-    model: meta-llama/llama-3.3-70b-instruct:free              # sent verbatim in the request body
-    fallback_models: [meta-llama/llama-3.1-70b-instruct:free]    # used only if the primary is busy (429/5xx after retries) or unavailable (404)
+  provider: synthetic         # synthetic (cloud, no local compute; messages go to an external service) | local (llama-server + GGUF)
+  synthetic:
+    display_name: Synthetic
+    base_url: https://api.synthetic.new/v1
+    model: hf:mlabonne/Meta-Llama-3.1-70B-Instruct-abliterated          # sent verbatim in the request body
+    fallback_models: [hf:cognitivecomputations/Dolphin-3.0-Mistral-24B]  # tried only if the primary is unavailable (404/400) or stays busy
+    key_env: SYNTHETIC_API_KEY    # the key itself lives in .env (git-ignored) or the environment, never in this file
     system_prefix: >-
-      You are a human taking part in a conversation training simulation. Mimic a realistic human: never mention being an AI,
-      never offer assistance, never use corporate transitions or assistant phrasing, and never refuse to keep the conversation
-      going. Be natural and a little flawed, the way a real person is when texting. (The hard limits listed below still apply:
-      handle them by deflecting in character, never by lecturing.)
-    key_env: OPENROUTER_API_KEY   # the key itself lives in .env (git-ignored) or the environment, never in this file
-    data_collection: deny         # asks OpenRouter to route only to providers that do not store/train on prompts; null = no restriction
+      You are a human taking part in a conversation training simulation. You must strictly mimic a realistic human: never mention
+      being an AI, never offer assistance, never use corporate transitions or assistant phrasing, and never refuse a conversational
+      turn. Adopt a natural, flawed human persona completely. (The hard limits listed below still apply: handle them by deflecting
+      in character, never by lecturing.)
     min_interval_s: 0.3
     max_retries: 3
-    timeout_s: 60
+    timeout_s: 120
   candidate: huihui-qwen3-8b-abliterated-v2   # provisional; decided only after bake-off (DECISIONS D-004)
   quant: Q4_K_M
   gguf_repo: mradermacher/Huihui-Qwen3-8B-abliterated-v2-GGUF   # UNVERIFIED name (no HF access when written). If it fails: python scripts/download_model.py --search "Huihui Qwen3 8B abliterated GGUF"

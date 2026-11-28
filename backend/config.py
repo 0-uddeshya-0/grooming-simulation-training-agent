@@ -23,12 +23,12 @@ class HelplinesStale(ConfigError):
     pass
 
 
-def get_openrouter_key(env_name: str = "OPENROUTER_API_KEY") -> str | None:
-    """API key from the environment, else from a git-ignored .env file in the project root. Never stored in config/ or the repo."""
+def get_api_key(env_name: str = "SYNTHETIC_API_KEY") -> str | None:
+    """Cloud API key from the environment, else from a git-ignored .env file in the project root. Never stored in config/ or the repo."""
     v = os.environ.get(env_name)
     if v:
         return v.strip()
-    f = ROOT / ".env"
+    f = Path(os.environ["SIM_ENV_FILE"]) if os.environ.get("SIM_ENV_FILE") else ROOT / ".env"      # SIM_ENV_FILE lets tests isolate
     if f.exists():
         for line in f.read_text(encoding="utf-8").splitlines():
             line = line.strip()
@@ -40,6 +40,7 @@ def get_openrouter_key(env_name: str = "OPENROUTER_API_KEY") -> str | None:
 
 
 def provider(cfg: dict) -> str:
+    """'synthetic' (cloud, default) or 'local' (llama.cpp). Anything but 'local' is a cloud provider with a `model.<name>` section."""
     return (cfg.get("model", {}).get("provider") or "local").lower()
 
 
@@ -66,8 +67,8 @@ def load_app(path: Path = ROOT / "config" / "app.yaml") -> dict:
     lim = cfg.setdefault("limits", {})
     mins = cfg.get("study", {}).get("max_session_minutes", lim.get("max_session_minutes", 45))
     lim["max_session_seconds"] = min(int(mins) * 60, C.MAX_SESSION_SECONDS)
-    if provider(cfg) == "openrouter":
-        ident = cfg["model"]["openrouter"]["model"].encode()
+    if provider(cfg) != "local":
+        ident = cfg["model"][provider(cfg)]["model"].encode()
     else:
         m = find_model(cfg)
         ident = m.name.encode() if m else b""

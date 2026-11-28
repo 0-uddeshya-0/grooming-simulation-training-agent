@@ -14,14 +14,15 @@ if errs:
     print("\nCannot start yet:\n" + "\n".join("  - " + e for e in errs)); sys.exit(1)
 cfg = load_app(); ls = cfg["llama_server"]; (ROOT / "data").mkdir(exist_ok=True)
 import socket
-remote = provider(cfg) == "openrouter"
+remote = provider(cfg) != "local"
 for port in ([a.port] if remote else [ls["port"], a.port]):
     with socket.socket() as sk:
         if sk.connect_ex(("127.0.0.1", port)) == 0:
             print(f"\nPort {port} is already in use (an old server still running?). Close it or choose another port in config/app.yaml / --port."); sys.exit(1)
 proc = None
 if remote:
-    print(f"Model: {cfg['model']['openrouter']['model']} via OpenRouter (messages are sent to an external service).")
+    sec = cfg["model"][provider(cfg)]
+    print(f"Model: {sec['model']} via {sec.get('display_name', provider(cfg))} (messages are sent to an external service).")
 else:
     cmd = [find_llama_server(ls["binary"]), "-m", str(find_model(cfg)), "-c", str(ls["ctx"]), "--host", ls["host"], "--port", str(ls["port"]),
            "-ngl", "0" if a.cpu else str(ls.get("gpu_layers", 99)), "--jinja", *map(str, ls.get("extra_args", []))]

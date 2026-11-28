@@ -11,7 +11,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from .config import ROOT, HelplinesStale, load_app, load_helplines, load_personas
 from .debrief import build_debrief, build_summary, researcher_block
 from .engine import BusyError, Engine
-from .llm import LLMError, LlamaServer, MockLLM, OpenRouter, create_llm
+from .llm import CloudLLM, LLMError, MockLLM, create_llm
 from .store import Store
 
 
@@ -117,7 +117,8 @@ def create_app(cfg=None, llm=None, db_path=None, check_helplines=True) -> FastAP
         st = cfg["study"]
         return {"title": st["title"], "researcher_name": st["researcher_name"], "researcher_contact": st["researcher_contact"],
                 "max_session_minutes": cfg["limits"]["max_session_seconds"] // 60,
-                "model_location": "remote" if isinstance(llm, OpenRouter) else "local"}
+                "model_location": "remote" if isinstance(llm, CloudLLM) else "local",
+                "model_provider": llm.name if isinstance(llm, CloudLLM) else "local"}
 
     @app.get("/api/support")
     def support():
@@ -132,7 +133,7 @@ def create_app(cfg=None, llm=None, db_path=None, check_helplines=True) -> FastAP
     async def health():
         if isinstance(llm, MockLLM):
             return {"model_ready": True}
-        if isinstance(llm, OpenRouter):
+        if isinstance(llm, CloudLLM):
             return {"model_ready": await llm.health()}
         try:
             import httpx

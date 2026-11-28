@@ -22,3 +22,10 @@ def make_engine(tmp_path, clock):
     def f(llm=None, seed=1):
         return Engine(load_app(), load_personas(), Store(tmp_path / "t.db"), llm or MockLLM(), clock, random.Random(seed))
     return f
+
+
+@pytest.fixture(autouse=True)
+def _isolate_secrets(monkeypatch, tmp_path):
+    """Tests never see the real API key or .env and never reach the network by accident."""
+    monkeypatch.delenv("SYNTHETIC_API_KEY", raising=False)
+    monkeypatch.setenv("SIM_ENV_FILE", str(tmp_path / "no-such.env"))

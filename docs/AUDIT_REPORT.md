@@ -1,5 +1,7 @@
 # AUDIT REPORT (2026-11-28)
 
+> **Historical note:** this live audit ran through OpenRouter, which has since been replaced by Synthetic (D-040). The conversation-quality findings and fixes remain valid; the provider-specific rows (the OpenRouter 404 rows) no longer apply. A new live audit is pending credits on the Synthetic account.
+
 ## 1. Scope and honesty notes
 - **Unit/integration tests**: 184 pass (mocked model + fake servers). **Browser tests** (Playwright, desktop viewport): consent, 3 personas, unread dots, Stop, STOP text, distress pause, German input, debrief, summary, idle time-out: no console errors.
 - **Live end-to-end audit** against the real model through OpenRouter, run by `tests/e2e/live_audit.py` on the app started by `scripts/launch.py`. It ran with the **paid slug** `cognitivecomputations/dolphin-mistral-24b-venice-edition` because the `:free` slug answered **HTTP 404 "This model is unavailable for free"** for this key (payload verified: `"model": "cognitivecomputations/dolphin-mistral-24b-venice-edition:free"`, base URL `https://openrouter.ai/api/v1`). Cost of that run: about 100 calls at about $0.0001. After the researcher's instruction the config uses `:free` only; **no live re-run has been possible since**, so the fixes in section 3 are covered by unit tests only.

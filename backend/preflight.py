@@ -2,7 +2,7 @@
 import os
 import shutil
 import sys
-from .config import ROOT, ConfigError, HelplinesStale, find_model, get_openrouter_key, load_app, load_helplines, load_personas, provider
+from .config import ROOT, ConfigError, HelplinesStale, find_model, get_api_key, load_app, load_helplines, load_personas, provider
 
 
 def ram_gb() -> float:
@@ -35,9 +35,11 @@ def check(need_model=True) -> list[str]:
     except ConfigError as e:
         errs.append(f"CONFIG: {e}")
         return errs
-    if provider(cfg) == "openrouter":
-        if not get_openrouter_key(cfg["model"]["openrouter"].get("key_env", "OPENROUTER_API_KEY")):
-            errs.append("KEY: no OpenRouter API key. Copy .env.example to .env and set OPENROUTER_API_KEY=... (never commit .env).")
+    if provider(cfg) != "local":
+        sec = cfg["model"][provider(cfg)]
+        env = sec.get("key_env", "SYNTHETIC_API_KEY")
+        if not get_api_key(env):
+            errs.append(f"KEY: no {sec.get('display_name', provider(cfg))} API key. Copy .env.example to .env and set {env}=... (never commit .env).")
     else:
         r = ram_gb()
         if r and r < cfg["limits"]["min_free_ram_gb"] + 2:
