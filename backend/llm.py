@@ -24,7 +24,7 @@ class Reply(str):
         return o
 
 
-FREE_MODEL = "cognitivecomputations/dolphin-mistral-24b-venice-edition:free"     # default; sent verbatim as the "model" field
+FREE_MODEL = "nousresearch/hermes-3-llama-3.1-405b:free"     # default; sent verbatim as the "model" field
 
 
 class OpenRouter:

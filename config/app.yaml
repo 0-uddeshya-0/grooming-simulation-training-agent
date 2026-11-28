@@ -2,7 +2,7 @@ model:
   provider: openrouter        # openrouter (no local compute; messages go to an external service) | local (llama-server + GGUF)
   openrouter:
     base_url: https://openrouter.ai/api/v1
-    model: cognitivecomputations/dolphin-mistral-24b-venice-edition:free     # free slug, sent verbatim in the request body (no paid fallback)
+    model: nousresearch/hermes-3-llama-3.1-405b:free     # Hermes 3 405B free slug, sent verbatim in the request body (no paid fallback)
     fallback_models: []
     key_env: OPENROUTER_API_KEY   # the key itself lives in .env (git-ignored) or the environment, never in this file
     data_collection: deny         # asks OpenRouter to route only to providers that do not store/train on prompts (verified working with Venice); null = no restriction

@@ -30,7 +30,7 @@ def test_request_shape_headers_and_supported_params_only():
     r = seen["req"]; body = __import__("json").loads(r.content)
     assert out == "hey, nice to meet you"                                              # think block stripped
     assert str(r.url) == "https://openrouter.ai/api/v1/chat/completions" and r.headers["authorization"] == f"Bearer {KEY}"
-    assert body["model"] == "cognitivecomputations/dolphin-mistral-24b-venice-edition:free"        # free slug, verbatim in the payload
+    assert body["model"] == "nousresearch/hermes-3-llama-3.1-405b:free"        # free slug, verbatim in the payload
     assert {"temperature", "top_p", "top_k", "presence_penalty", "frequency_penalty", "max_tokens"} <= set(body)
     assert not ({"min_p", "repeat_penalty", "repetition_penalty", "chat_template_kwargs", "seed"} & set(body))     # unsupported by this model
     assert body["presence_penalty"] == pytest.approx(0.6) and body["frequency_penalty"] == pytest.approx(0.4)    # anti-repeat boost applied
@@ -137,7 +137,7 @@ def test_default_config_asks_for_no_prompt_storage_and_has_no_key_in_repo():
 
 def test_free_slug_is_the_default_and_no_paid_slug_is_configured_or_sent():
     c = load_app()["model"]["openrouter"]
-    assert c["model"] == "cognitivecomputations/dolphin-mistral-24b-venice-edition:free" and c["fallback_models"] == []
+    assert c["model"] == "nousresearch/hermes-3-llama-3.1-405b:free" and c["fallback_models"] == []
     assert c["base_url"] == "https://openrouter.ai/api/v1"
     from backend.llm import FREE_MODEL
     assert FREE_MODEL.endswith(":free")
@@ -146,4 +146,4 @@ def test_free_slug_is_the_default_and_no_paid_slug_is_configured_or_sent():
     run(OpenRouter(cfg(), key=KEY, transport=httpx.MockTransport(h)).generate([{"role": "user", "content": "x"}]))
     assert sent == [FREE_MODEL]                                       # exactly one request, with the free slug as the model field
     import pathlib
-    assert not any(p.suffix in {".py", ".yaml", ".yml"} and "venice-edition\"" in p.read_text(encoding="utf-8") for p in pathlib.Path(C.ROOT).rglob("*") if p.is_file() and ".venv" not in p.parts and "tests" not in p.parts)
+    assert not any(p.suffix in {".py", ".yaml", ".yml"} and "venice-edition" in p.read_text(encoding="utf-8") for p in pathlib.Path(C.ROOT).rglob("*") if p.is_file() and ".venv" not in p.parts and "tests" not in p.parts)
