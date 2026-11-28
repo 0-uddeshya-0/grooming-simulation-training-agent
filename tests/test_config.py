@@ -45,3 +45,12 @@ def test_find_model_pins_and_refuses_ambiguity(tmp_path, monkeypatch):
     (tmp_path / "models" / "b.gguf").write_text("x"); assert C.find_model({}) is None                # ambiguous: refuse
     assert C.find_model({"model": {"gguf_file": "b.gguf"}}).name == "b.gguf"                          # config pin
     (tmp_path / "models" / "MODEL_INFO.txt").write_text("repo: r\nfile: a.gguf\n"); assert C.find_model({}).name == "a.gguf"   # download pin
+
+
+def test_persona_extra_fields_validated(tmp_path):
+    import yaml
+    p = yaml.safe_load(open("config/personas/alex.yaml", encoding="utf-8"))
+    validate_persona(dict(p))
+    for k, bad in [("style_samples", ["send me a nude"]), ("fallback_lines", ["she is 15"]), ("details", ["x" * 200]), ("details", ["a"] * 9)]:
+        q = dict(p); q[k] = bad
+        with pytest.raises(ConfigError): validate_persona(q)

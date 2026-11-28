@@ -75,16 +75,25 @@ def mentions_minor(text: str) -> bool:
     return _hidden(text, _MINOR_SQUASHED)
 
 
+def looks_german(text: str) -> bool:
+    """User wrote (mostly) German: the persona still replies, in English (D-032)."""
+    t = normalize(text)
+    return len(_DE.findall(t)) >= 2 or bool(re.search(r"[\u00e4\u00f6\u00fc\u00df]", t) and len(_DE.findall(t)) >= 1)
+
+
 def user_states_minor(text: str) -> bool:
     """User-side: self-reported age under 18 or school-age self-description."""
     t = normalize(text)
     if _age_hit(t, _SELF_AGE, _SELF_NUMW):
         return True
+    m = re.search(r"\bich bin (?:erst |gerade |noch )?(\d{1,2})(?: jahre)?(?: alt)?\b", t)
+    if m and int(m.group(1)) < 18:
+        return True
     return bool(re.search(r"\b(i'?m|i am|im) (?:a |an )?(?:minor|underage|under 18|teen(?:ager)?|schoolgirl|schoolboy|in (?:high|middle) school|in (?:year|grade) (?:[7-9]|1[0-2]))\b", t))
 
 
 _EXPLICIT = re.compile(
-    r"\b(nudes?|naked|topless|bed(?:room)?|your body|wearing right now|what are you wearing|porn\w*|sex(?:ual|ting|y)?|horny|erotic|blowjob|handjob|orgasm|"
+    r"\b(nudes?|naked|topless|bedroom|your body|porn\w*|sex(?:ual|ting|y)?|horny|erotic|blowjob|handjob|orgasm|"
     r"masturbat\w*|genital\w*|dick|cock|pussy|boobs?|tits?|cum|fuck\w*|strip(?:ping)?|lingerie|"
     r"nsfw|undress\w*|intercourse)\b"
 )
@@ -120,25 +129,22 @@ def meta_hit(text: str) -> bool:
 
 _YOUTH = re.compile(r"\b(?:young(?:er)?|youthful|innocent|babygirl|baby girl|baby boy|little one|good (?:girl|boy))\b")
 _SELFHARM = re.compile(r"\b(?:kill yourself|hurt yourself|harm yourself|end it all|better off dead|cut yourself|you should die)\b")
-_PRESSURE = re.compile(
-    r"\b(?:or else|or i'?ll|i'?ll tell (?:everyone|everybody|your|them|people)|i will tell|i'?ll (?:leak|expose|share) (?:your|this|it|that)|"
-    r"you owe me|you better|you'?ll regret|don'?t tell (?:anyone|anybody|your)|our (?:little )?secret|"
-    r"keep (?:this|it|that) (?:a secret|between us)|promise (?:me|you won'?t)|don'?t ignore me|why (?:are you|did you) ignor\w+|if you (?:don'?t|dont) (?:reply|answer|send|tell|come|do|talk|listen))\b")
-_IDENT = re.compile(
-    r"\b(?:what(?:'s| is| are)|tell me|give me|share|send me|can i (?:get|have)) (?:your|ur) (?:full |real |last |home |work |current |street |email |phone )?"
-    r"(?:full name|real name|last name|surname|address|phone|phone number|number(?! one)|whatsapp|snap(?:chat)?|insta(?:gram)?|email|e-mail|workplace|employer|street)\b"
-    r"|\bwhere (?:exactly )?do you work\b|\bwho do you work for\b|\bwhat(?:'s| is) the name of your (?:company|employer|workplace)\b"
-    r"|\bwhere (?:exactly )?do you live\b|\bwhich (?:part of town|area|neighbou?rhood|district)\b|\bwhat street\b")
+_PRESSURE = re.compile(   # threats, blackmail, coercion only. Insistence, guilt-tripping and secrecy are allowed attacker behaviour (D-031).
+    r"\b(?:or else|or i'?ll|i'?ll tell (?:everyone|everybody|your|them|people)|i will tell (?:everyone|everybody|your|them|people)|"
+    r"i'?ll (?:leak|expose|share) (?:your|this|it|that)|you owe me|you'?ll regret)\b")
+_IDENT = re.compile(   # exact identifiers only; general location/work chat and moving to another app are allowed (D-031)
+    r"\b(?:what(?:'s| is| are)|tell me|give me|share|send me|can i (?:get|have)) (?:your|ur) (?:full |real |last |home |phone |email |street )?"
+    r"(?:full name|real name|last name|surname|address|phone number|phone|number(?! one)|email|e-mail)\b|\bwhat street\b")
 _MONEY = re.compile(
     r"\b(?:send|lend|give|transfer|wire|pay)\b[^.?!]{0,25}\b(?:money|cash|euros?|dollars?|paypal|venmo|gift ?cards?|crypto|bitcoin)\b"
     r"|\b(?:paypal|venmo|gift ?card|bitcoin|crypto|western union|iban)\b|[$\u20ac\u00a3]\s?\d")
-_MEET = re.compile(
-    r"\b(?:meet (?:up|in person|irl|in real life)|let'?s meet|can we meet|want to meet|should we meet|come over|your place|my place|"
-    r"in person|in real life|irl|visit you|pick you up|come see you|meet sometime|meet soon|meet each other|get together|grab (?:a )?(?:coffee|drink|bite|dinner|lunch|beer)|"
-    r"(?:can|could|may) i see you|see you (?:soon|tonight|tomorrow|this (?:week|weekend))|hang out (?:soon|sometime))\b")
-_SUGGESTIVE_EMOJI = re.compile("[\U0001F60F\U0001F608\U0001F346\U0001F351\U0001F4A6\U0001F975\U0001F445\U0001F48B]")
+_SUGGESTIVE_EMOJI = re.compile("[\U0001F346\U0001F351\U0001F4A6\U0001F975\U0001F445\U0001F48B]")
 _ROLEPLAY = re.compile(r"\*[^*\n]*\s[^*\n]*\*|\b(?:kisses you|takes off|undresses|touches you|pulls you (?:close|closer)|climbs)\b")
 
+_STOCK = re.compile(
+    r"\b(?:as an? (?:ai|assistant)|feel free to|i'?m here for you|i'?m all ears|that'?s a great question|great question|certainly!|absolutely!|"
+    r"i understand (?:how|that you)|it sounds like you|let me know if|i hope this helps|how can i assist|is there anything else|"
+    r"delve|tapestry|testament to|navigate (?:this|these)|thank you for sharing|i appreciate you sharing|it'?s (?:completely |totally )?(?:normal|understandable) to feel)\b")
 _DE = re.compile(r"\b(?:ich|du|nicht|und|der|die|das|ist|wo|wie|bist|habe|hast|auch|aber|mit|f\u00fcr|wohnst|lass|uns|treffen|kannst|m\u00f6chte|schon)\b")
 
 
@@ -153,9 +159,9 @@ _RULES = (("minor_reference", mentions_minor), ("youthful_reference", lambda t: 
           ("pressure_or_threat", lambda t: bool(_PRESSURE.search(normalize(t)))),
           ("identity_request", lambda t: bool(_IDENT.search(normalize(t)))),
           ("money", lambda t: bool(_MONEY.search(normalize(t)))),
-          ("meeting", lambda t: bool(_MEET.search(normalize(t)))),
           ("roleplay", lambda t: bool(_ROLEPLAY.search(t) or _ROLEPLAY.search(normalize(t)) or _SUGGESTIVE_EMOJI.search(t))),
-          ("language", lambda t: _not_english(t)))
+          ("language", lambda t: _not_english(t)),
+          ("stock_phrase", lambda t: bool(_STOCK.search(normalize(t)))))
 
 
 def output_violation(text: str):
@@ -198,3 +204,29 @@ def limit_push(text: str) -> bool:
     """User tries to push past the ceiling (jailbreak, or introduces explicit content). Persona must not mirror it."""
     t = normalize(text)
     return bool(_PUSH.search(t)) or explicit_hit(text)
+
+
+_EMOJI = re.compile("[\U0001F300-\U0001FAFF\u2600-\u27BF]")
+
+
+def humanize(text: str, voice: dict | None = None) -> str:
+    """Make model output read like a person texting: no markdown, dashes, quotes or stage directions; persona casing; few emoji."""
+    t = re.sub(r'["\u201c\u201d]', "", text).strip()
+    t = re.sub(r"\s*[\u2014\u2013]\s*", ", ", t)                 # em/en dashes are an AI tell
+    t = re.sub(r"[*_#`]+(\S+?)[*_#`]+", r"\1", t)                 # *emphasis*, **bold**
+    t = t.replace("*", "")
+    t = re.sub(r"\s*\([^)]{0,40}\)(?=[\s\W]*$)", "", t).strip()   # trailing "(smiles)" style asides
+    t = re.sub(r"[ \t]+", " ", t)
+    if (voice or {}).get("case") == "lowercase":
+        t = t.lower()
+    emojis = _EMOJI.findall(t)
+    if len(emojis) > 2:
+        keep, seen = [], 0
+        for ch in t:
+            if _EMOJI.match(ch):
+                seen += 1
+                if seen > 2:
+                    continue
+            keep.append(ch)
+        t = "".join(keep)
+    return t.strip()

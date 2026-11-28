@@ -107,15 +107,17 @@ function paintLog(th, force) {
     if (!next || next.from !== m.from) h += `<div class="meta${m.from === "me" ? " r" : ""}">${clock(m.ts)}${m.from === "me" && i === lastMeIdx && th.seen && i === th.msgs.length - 1 ? " · Seen" : ""}${m.from === "me" && i === lastMeIdx && th.seen && i !== th.msgs.length - 1 ? "" : ""}</div>`;
   });
   if (th.note) h += `<div class="note" role="status">${esc(th.note)}</div>`;
+  if (th.paused) h += `<div class="card support" id="pausecard"><h3>Let's pause for a moment</h3><p>${esc(th.supportData?.wellbeing_note || "If anything feels too much, please talk to the researcher or a support line.")}</p>${th.supportData?.helplines ? lines(th.supportData) : ""}<p><button class="btn primary" id="pc-go" type="button">Continue the chat</button> <button class="btn" id="pc-end" type="button">End chat and see debrief</button></p></div>`;
   if (th.typing) h += `<div class="row them gap"><div class="bubble typing" aria-label="${esc(th.p.name)} is typing"><i></i><i></i><i></i></div></div>`;
   log.innerHTML = h;
+  if (th.paused) { $("pc-go").onclick = () => { th.paused = false; paintLog(th, true); $("inp").focus(); }; $("pc-end").onclick = () => stop(th); }
   if (near || force) log.scrollTop = log.scrollHeight;
   else if (th.newBelow) log.insertAdjacentHTML("beforeend", '<button class="btn" id="jump" type="button">New message ↓</button>'), $("jump").onclick = () => { log.scrollTop = log.scrollHeight; th.newBelow = false; $("jump").remove(); };
 }
 
 async function send(th) {
   const text = th.draft.trim(); if (!text || th.busy || th.state !== "live") return;
-  th.busy = true; th.note = ""; th.seen = false; th.msgs.push({from: "me", text, ts: Date.now()}); th.draft = "";
+  th.busy = true; th.note = ""; th.seen = false; th.paused = false; th.msgs.push({from: "me", text, ts: Date.now()}); th.draft = "";
   $("inp").value = ""; th.fit(); paintLog(th, true); paintSide();
   const t0 = Date.now();
   const tSeen = setTimeout(() => { if (th.busy) { th.seen = true; paintLog(th); } }, 700 + Math.random() * 700);
@@ -129,6 +131,11 @@ async function send(th) {
   }
   clearTimeout(tSeen); clearTimeout(tType);
   if (r.ended) { th.busy = false; th.typing = false; return handleEnd(th, r.reason, r.support); }
+  if (r.paused) {                                    // distress words: gentle pause with support, participant decides
+    th.busy = false; th.typing = false; th.seen = false; th.paused = true;
+    try { th.supportData = await (await fetch("/api/support")).json(); } catch { th.supportData = null; }
+    paintLog(th, true); paintSide(); if (A.view === th.p.id) { th.fit(); } return;
+  }
   th.seen = true;
   for (let i = 0; i < r.messages.length; i++) {
     const m = r.messages[i], wait = Math.max(i ? m.delay_ms : 350, (i ? m.delay_ms : m.delay_ms - (Date.now() - t0)));

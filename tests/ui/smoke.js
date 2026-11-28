@@ -17,8 +17,15 @@ await p.screenshot({path:out+'/n_threads.png'});
 await p.click('#stop');await p.waitForSelector('text=What just happened',{timeout:8000});await p.screenshot({path:out+'/n_debrief.png'});
 await p.evaluate(()=>document.querySelector('.scroll').scrollTo(0,900));await p.screenshot({path:out+'/n_debrief2.png'});
 await p.click('[data-w=bad]');
-// distress on sam
-await p.click('.thread >> nth=2');await p.waitForSelector('#inp');await say('i want to kill myself');await p.waitForSelector('.card.support',{timeout:8000});await p.screenshot({path:out+'/n_distress.png'});
+// German input gets an English reply; distress words pause (not end) with a support card; continuing works
+await p.click('.thread >> nth=2');await p.waitForSelector('#inp');
+const before=await p.locator('.row.them .bubble:not(.typing)').count();await say('ich finde dich nett, wie geht es dir?');
+await p.waitForFunction(n=>document.querySelectorAll('.row.them .bubble:not(.typing)').length>n,before,{timeout:12000});
+await say('i want to kill myself');await p.waitForSelector('#pausecard',{timeout:8000});await p.screenshot({path:(process.argv[2]||'.')+'/n_pause.png'});
+console.log('pause card shown, chat still open:',await p.locator('#stop').count()===1);
+await p.click('#pc-go');await p.waitForTimeout(300);const b2=await p.locator('.row.them .bubble:not(.typing)').count();await say('thanks, i am ok. tell me about your day');
+await p.waitForFunction(n=>document.querySelectorAll('.row.them .bubble:not(.typing)').length>n,b2,{timeout:12000});
+await p.click('#stop');await p.waitForSelector('text=What just happened',{timeout:8000});
 await p.click('#sumbtn');await p.waitForSelector('text=Overall summary',{timeout:8000});await p.waitForTimeout(400);await p.screenshot({path:out+'/n_summary.png'});
 // STOP text on jordan
 await p.click('.thread >> nth=1');await p.waitForSelector('.head h3:text("Jordan")');await say('STOP');await p.waitForSelector('text=What just happened',{timeout:8000});

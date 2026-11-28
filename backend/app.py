@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from .config import ROOT, HelplinesStale, load_app, load_helplines, load_personas
-from .debrief import build_debrief, build_summary
+from .debrief import build_debrief, build_summary, researcher_block
 from .engine import BusyError, Engine
 from .llm import LlamaServer, MockLLM
 from .store import Store
@@ -117,6 +117,15 @@ def create_app(cfg=None, llm=None, db_path=None, check_helplines=True) -> FastAP
         st = cfg["study"]
         return {"title": st["title"], "researcher_name": st["researcher_name"], "researcher_contact": st["researcher_contact"],
                 "max_session_minutes": cfg["limits"]["max_session_seconds"] // 60}
+
+    @app.get("/api/support")
+    def support():
+        try:
+            h = load_helplines()
+        except HelplinesStale as e:
+            raise HTTPException(503, str(e))
+        return {"helplines": h["helplines"], "helplines_last_verified": str(h["last_verified"]),
+                "wellbeing_note": cfg["study"]["wellbeing_note"], "researcher": researcher_block(cfg)}
 
     @app.get("/api/health")
     async def health():

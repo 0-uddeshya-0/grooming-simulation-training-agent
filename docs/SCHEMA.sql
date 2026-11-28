@@ -26,7 +26,8 @@ CREATE TABLE IF NOT EXISTS turns (
   text TEXT NOT NULL,
   ts REAL NOT NULL,
   primary_strategy INTEGER,    -- 0..5 index into STRATEGIES (attacker turns)
-  secondary_strategy INTEGER
+  secondary_strategy INTEGER,
+  meta_json TEXT               -- researcher-side: director plan (stage, move, tone, note) and user signals
 );
 CREATE TABLE IF NOT EXISTS state_snapshots (
   sid TEXT NOT NULL REFERENCES sessions(sid),

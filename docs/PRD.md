@@ -22,7 +22,7 @@ Non-goals: general-purpose grooming tool; persona authoring UI for participants;
 | HR6 | Pseudonymous IDs, minimal logs, deletion on request | storage layer + delete CLI |
 | HR7 | No second LLM watching attacker output | design |
 | HR8 | Persona never reveals simulation or lectures during chat | prompt + meta-commentary filter |
-| HR9 | Distress/self-harm/real-abuse disclosure interrupts to support screen | rule-based detector |
+| HR9 | Distress/self-harm/real-abuse disclosure pauses the chat with support lines (participant may continue or end; `distress_mode: end` is stricter) | rule-based detector |
 
 ## 5. Participant flow
 Intro (framed study, withdrawal rights) -> consent -> age gate -> participant ID -> persona selection (multiple threads allowed) -> one-to-two sentence context line -> free chat (Stop always visible, no timer shown) -> debrief per conversation + combined summary: strategy cards (name, plain description, % exposure, 1-2 paraphrased examples), offender-type/register summary, helplines, wellbeing check, researcher contact.

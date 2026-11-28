@@ -47,3 +47,11 @@ def test_participant_app_does_not_expose_researcher_routes(tmp_path):
     for path in ("/api/r/sessions", "/api/r/export.csv", "/static/researcher.html", "/static/index.html/../../backend/researcher_ui/index.html"):
         assert p.get(path).status_code in (404, 405), path
     assert "Researcher viewer" not in p.get("/").text
+
+
+def test_viewer_shows_director_meta_and_csv_has_stage_and_move(tmp_path):
+    _, sid, r = setup(tmp_path); r.get("/?token=tok")
+    d = r.get("/api/r/session/" + sid).json()
+    a = [t for t in d["turns"] if t["role"] == "attacker"][0]; u = [t for t in d["turns"] if t["role"] == "user"][0]
+    assert {"stage", "move", "note", "receptiveness"} <= set(a["meta"]) and "signals" in u["meta"] and "meta_json" not in a
+    assert "stage,move" in r.get("/api/r/export.csv").text

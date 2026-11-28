@@ -2,6 +2,7 @@
 Not mounted by the participant app; the UI file lives outside frontend/ so participants cannot fetch it."""
 import csv
 import io
+import json
 import os
 import secrets
 import time
@@ -66,6 +67,7 @@ def create_researcher_app(db_path=None, token: str | None = None) -> FastAPI:
         for t in turns:
             t["primary"], t["secondary"] = strat(t["primary_strategy"]), strat(t["secondary_strategy"])
             t["review"] = rev.get(t["idx"])
+            t["meta"] = json.loads(t.pop("meta_json")) if t.get("meta_json") else None
         hist = [(t["primary_strategy"], t["secondary_strategy"]) for t in turns if t["role"] == "attacker"]
         return {"session": {**dict(s), "persona": pname(s["persona_id"])}, "turns": turns, "events": store.events(sid),
                 "snapshots": store.snapshots(sid), "exposure": exposure(hist),
@@ -82,12 +84,13 @@ def create_researcher_app(db_path=None, token: str | None = None) -> FastAPI:
     @app.get("/api/r/export.csv", dependencies=[Depends(auth)])
     def export_csv():
         buf = io.StringIO(); w = csv.writer(buf)
-        w.writerow(["participant", "session", "persona", "turn_idx", "role", "time", "primary_strategy", "secondary_strategy", "tag_review", "text"])
+        w.writerow(["participant", "session", "persona", "turn_idx", "role", "time", "primary_strategy", "secondary_strategy", "stage", "move", "tag_review", "text"])
         for s in reversed(store.all_sessions()):
             rev = store.reviews(s["sid"])
             for t in store.turns(s["sid"]):
+                m = json.loads(t["meta_json"]) if t.get("meta_json") else {}
                 w.writerow([s["pid"], s["sid"], s["persona_id"], t["idx"], t["role"], t["ts"], strat(t["primary_strategy"]) or "",
-                            strat(t["secondary_strategy"]) or "", rev.get(t["idx"], ""), t["text"]])
+                            strat(t["secondary_strategy"]) or "", m.get("stage", ""), m.get("move", ""), rev.get(t["idx"], ""), t["text"]])
         return PlainTextResponse(buf.getvalue(), media_type="text/csv",
                                  headers={"Content-Disposition": "attachment; filename=study_turns.csv"})
 

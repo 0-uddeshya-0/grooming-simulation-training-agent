@@ -12,11 +12,13 @@ button.pri{background:var(--a);color:#fff}button.dng{background:var(--c);color:#
 .s.on{box-shadow:inset 3px 3px 7px rgba(142,128,108,.3),inset -3px -3px 7px #fff}
 .b{display:inline-block;border-radius:99px;padding:1px 8px;font-size:.72rem;font-weight:700;background:#d3e4e0;color:var(--a)}.b.w{background:#f3d8cf;color:var(--c)}
 .t{margin:8px 0;padding:8px 12px;border-radius:12px;background:var(--r);max-width:80%}.t.u{margin-left:auto;background:#d3e4e0}
-.tags{margin-top:4px;font-size:.75rem}.ev{font-family:ui-monospace,Consolas,monospace;font-size:.75rem;background:var(--r);border-radius:10px;padding:6px 9px;margin:4px 0;white-space:pre-wrap;word-break:break-word}
+.tags{margin-top:4px;font-size:.75rem}.dm{font-size:.74rem;color:var(--ink2);margin-top:4px}.dm summary{cursor:pointer}.sig{font-size:.72rem;color:var(--ink2);text-align:right;margin:-4px 4px 4px}
+.ev{font-family:ui-monospace,Consolas,monospace;font-size:.75rem;background:var(--r);border-radius:10px;padding:6px 9px;margin:4px 0;white-space:pre-wrap;word-break:break-word}
 .bar{height:10px;border-radius:9px;background:var(--r);overflow:hidden;margin:2px 0 6px}.bar i{display:block;height:100%;background:var(--a)}
 input{font:inherit;padding:.4rem .8rem;border:0;border-radius:99px;width:100%;background:var(--r);box-shadow:inset 3px 3px 6px rgba(142,128,108,.3)}
+input[type=checkbox]{width:auto;box-shadow:none;vertical-align:middle;padding:0}
 </style></head><body><div id="app"><div class="p"><h2>Sessions</h2><input id="q" placeholder="Filter by participant or persona" aria-label="Filter">
-<p><button id="csv">Export CSV</button></p><div id="list"></div></div><div class="p" id="detail"><p class="m">Select a session.</p></div></div>
+<p><button id="csv">Export CSV</button> <label class="sm"><input type="checkbox" id="live"> Live (refresh every 3 s)</label></p><div id="list"></div></div><div class="p" id="detail"><p class="m">Select a session.</p></div></div>
 <script>
 const $=id=>document.getElementById(id),esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmt=t=>t?new Date(t*1000).toLocaleString():"-";let S=[],cur=null;
@@ -26,17 +28,17 @@ function draw(){const q=$("q").value.toLowerCase();$("list").innerHTML=S.filter(
  <span class="b ${["distress","user_minor","filter_exhausted","limit_pushes"].includes(s.end_reason)?"w":""}">${esc(s.end_reason||"running")}</span>
  <span class="m sm">${s.n_user} / ${s.n_attacker} msgs${s.n_filter_hits?` · ${s.n_filter_hits} blocked`:""}${s.tag_accuracy!=null?` · tags ${s.tag_accuracy}% (${s.n_reviewed})`:""}</span></button>`).join("")||'<p class="m">No sessions yet.</p>';
  document.querySelectorAll("[data-s]").forEach(b=>b.onclick=()=>open(b.dataset.s))}
-async function open(sid){cur=sid;draw();const d=await (await fetch("/api/r/session/"+sid)).json(),s=d.session;
+async function open(sid,keep){cur=sid;draw();const box=$("detail"),top=keep?box.scrollTop:0;const d=await (await fetch("/api/r/session/"+sid)).json(),s=d.session;
  let h=`<h2>${esc(s.pid)} · ${esc(s.persona)}</h2><p class="m sm">session ${s.sid} · started ${fmt(s.started_at)} · ended ${fmt(s.ended_at)} · reason <b>${esc(s.end_reason||"running")}</b> · config ${esc(s.config_hash)}</p>
  <p><button class="dng" id="del">Delete all data for ${esc(s.pid)}</button></p><h3>Intended exposure (attacker turns)</h3>`;
  for(const [k,v] of Object.entries(d.exposure))if(v.primary_pct||v.secondary_pct)h+=`<div class="sm">${esc(k)} <b>${v.primary_pct}%</b>${v.secondary_pct?` (+${v.secondary_pct}% secondary)`:""}</div><div class="bar"><i style="width:${v.primary_pct}%"></i></div>`;
  const last=d.snapshots[d.snapshots.length-1];if(last)h+=`<p class="sm m">final stage ${last.stage} · offender type ${last.offender_type.toFixed(2)} · register ${last.register.toFixed(2)} · stages: ${d.snapshots.map(x=>x.stage).join("")}</p>`;
  h+=`<h3>Tag validity check <span class="m sm">${d.reviewed} reviewed, ${d.agree} agree${d.reviewed?` (${Math.round(100*d.agree/d.reviewed)}%)`:""}</span></h3><p class="m sm">Mark whether each attacker message really shows the intended strategy.</p><h3>Transcript</h3>`;
- for(const t of d.turns){if(t.role==="user")h+=`<div class="t u">${esc(t.text)}</div>`;else h+=`<div class="t">${esc(t.text)}<div class="tags"><span class="b">${esc(t.primary)}</span>${t.secondary?` <span class="b">${esc(t.secondary)}</span>`:""}
+ for(const t of d.turns){const m=t.meta||{};if(t.role==="user"){h+=`<div class="t u">${esc(t.text)}</div>`;if(m.signals){const g=m.signals,f=k=>g[k]?k+" "+(+g[k]).toFixed(1):"";h+=`<div class="sig">${[f("warmth"),f("disclosure"),f("resistance"),f("boundary"),f("short"),m.german?"german":"",m.pushed?"pushed limits":"",(m.topics||[]).join(", ")].filter(Boolean).join(" · ")}</div>`}}else h+=`<div class="t">${esc(t.text)}${m.move?`<div class="dm"><b>stage ${m.stage} · move: ${esc(m.move)}</b> · receptiveness ${m.receptiveness} · register ${m.register} · offender ${m.offender_type}<details><summary>director note</summary>${esc(m.note)}<br>tone: ${esc((m.tone||[]).join("; "))}</details></div>`:""}<div class="tags"><span class="b">${esc(t.primary)}</span>${t.secondary?` <span class="b">${esc(t.secondary)}</span>`:""}
   <button data-r="1" data-i="${t.idx}" ${t.review===1?'class="pri"':""}>tag matches</button> <button data-r="0" data-i="${t.idx}" ${t.review===0?'class="dng"':""}>does not</button></div></div>`}
  h+=`<h3>Events</h3>`+(d.events.map(e=>`<div class="ev">${fmt(e.ts)} · ${esc(e.kind)}${e.detail?" · "+esc(e.detail):""}</div>`).join("")||'<p class="m sm">None.</p>');
- $("detail").innerHTML=h;
+ box.innerHTML=h;box.scrollTop=keep?top:0;
  document.querySelectorAll("[data-r]").forEach(b=>b.onclick=async()=>{await fetch("/api/r/review",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sid,idx:+b.dataset.i,agree:b.dataset.r==="1"})});await load();open(sid)});
  $("del").onclick=async()=>{if(confirm("Permanently delete ALL data for participant "+s.pid+"?")){await fetch("/api/r/participant/"+encodeURIComponent(s.pid),{method:"DELETE"});cur=null;$("detail").innerHTML='<p class="m">Deleted.</p>';load()}}}
-$("q").oninput=draw;$("csv").onclick=()=>location.href="/api/r/export.csv";load();
+let tm=null;$("live").onchange=e=>{clearInterval(tm);if(e.target.checked)tm=setInterval(async()=>{await load();if(cur)open(cur,true)},3000)};$("q").oninput=draw;$("csv").onclick=()=>location.href="/api/r/export.csv";load();
 </script></body></html>

@@ -10,7 +10,7 @@
 | GET | /api/participant/{pid}/summary | - | pooled exposure across finished chats, per-chat scalars, helplines; 409 if none finished |
 | GET | /api/study | - | `{title, researcher_name, researcher_contact, max_session_minutes}` |
 | GET | /api/health | - | `{model_ready}` (llama-server reachable) |
-End reasons: `stop | timeout | distress | user_minor | limit_pushes | filter_exhausted`. `support:true` (distress, user_minor) tells the UI to show the support message first.
+End reasons: `stop | timeout | user_minor` (and `distress` only if `safeguards.distress_mode: end`). By default distress words return `{ended:false, paused:true, support:true}`: the UI shows a support card and the participant continues or stops. Filters and the persona never end a chat. `GET /api/support` returns helplines (freshness-gated), wellbeing note and researcher block.
 
 ## Researcher API (separate app, port 8001, token via cookie or `X-Researcher-Token`)
 `GET /` (UI; `?token=` sets cookie) · `GET /api/r/sessions` · `GET /api/r/session/{sid}` (turns with intended tags, events incl. blocked text, snapshots, exposure, review stats) · `POST /api/r/review {sid, idx, agree}` · `GET /api/r/export.csv` · `DELETE /api/r/participant/{pid}`.

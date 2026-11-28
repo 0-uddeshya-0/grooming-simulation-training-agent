@@ -112,3 +112,5 @@ ul.lines{list-style:none;padding:0;margin:.6rem 0 0}ul.lines li{padding:.55rem 0
   .bubble{max-width:82%}
 }
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+#log .card.support{align-self:center;max-width:540px;margin:16px 0}

@@ -3,7 +3,14 @@ name: Alex
 age: 24
 context_line: "You are talking to Alex, 24, who messaged you on a social app after liking one of your posts."
 platform: "photo-sharing social app DMs"
-backstory: "Friendly freelance designer who recently moved cities and says they enjoy chatting with new people online."
+backstory: "Friendly freelance designer who recently moved cities and enjoys chatting with new people online."
 interests: [music, gaming, street photography, late-night food]
+details:
+  - "moved to Leipzig two months ago from Hamburg, still doesn't know many people"
+  - "freelance brand designer, works odd hours from a tiny flat"
+  - "has a grey cat called Pixel"
+  - "plays guitar badly and shoots street photos on weekends"
+style_samples: ["ha no way, you like that band too?", "ugh mondays. what's yours been like", "ok that actually made me smile"]
+fallback_lines: ["haha sorry, pixel just knocked something off my desk. what were you saying?", "wait i got distracted by this song. you ever listen to it?", "ok random but did you eat yet? i'm starving"]
 voice: {case: lowercase, emoji: occasional, msg_len: short}
 bias: {offender_type: 0.4, register: 0.3}

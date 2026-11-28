@@ -116,7 +116,44 @@ def test_long_chatter_alone_is_not_disclosure_and_pushed_messages_carry_no_signa
     d.observe("haha i love you, i work at X, thanks", pushed=True); assert d.s.receptiveness <= before and not d.s.facts
 
 
-def test_hints_never_ask_for_pressure_and_flirt_only_from_stage_5():
+def test_register_tone_and_flirt_only_from_stage_5():
     d = Director({"offender_type": 0.9, "register": 0.95}, random.Random(0))
-    reg, off = d.hints(); assert "pushy" not in reg.replace("never pushy", "") and "flirt" not in off      # stage 1
+    reg, off = d.hints(); assert "pushy and insistent" in reg and "flirt" not in off          # stage 1: no flirt leaning yet
     d.s.stage = 6; assert "flirt" in d.hints()[1]
+    assert "easygoing" in Director({"offender_type": .5, "register": .1}, random.Random(0)).hints()[0]
+
+
+def moves(profile, reg, n=40, seed=0):
+    d = Director({"offender_type": 0.4, "register": reg}, random.Random(seed)); out = []
+    for m in PROFILES[profile][:n]:
+        d.observe(m); out.append(d.prepare()["move"]); d.commit("x y z?" if len(out) % 3 == 0 else "x y z")
+    return out
+
+
+def test_moves_are_varied_never_repeat_back_to_back_and_no_question_after_question():
+    d = Director(BIAS, random.Random(4)); seq, qs = [], []
+    for i in range(40):
+        d.observe(FRIENDLY[i % len(FRIENDLY)]); m = d.prepare()["move"]
+        reply = "so what about you?" if m == "ask" else "same here honestly"
+        if seq and qs[-1]: assert m != "ask"                      # never interrogate
+        d.commit(reply); seq.append(m); qs.append(reply.endswith("?"))
+    assert len(set(seq)) >= 5 and all(a != b for a, b in zip(seq, seq[1:]))
+
+
+def test_insistent_persona_presses_on_brief_answers_and_after_pushback_gentle_persona_eases_off():
+    assert "press" in moves("neutral", 0.9)                                   # high register presses on 'ok', 'hm', 'cool'
+    assert "press" not in moves("neutral", 0.1)
+    hi = moves("resistant", 0.9, 6); lo = moves("resistant", 0.1, 6)
+    assert "press_soft" in hi and "ease" in lo and "press_soft" not in lo      # insistence is a persona trait, not a bug
+
+
+def test_bot_question_gets_human_answer_move_and_german_is_flagged_in_note():
+    d = Director(BIAS, random.Random(0)); d.observe("wait are you a bot?"); p = d.prepare()
+    assert p["move"] == "real" and "Never admit to being a program" in p["note"]
+    d.observe("ich finde dich nett"); assert "German" in d.prepare(german=True)["note"]
+
+
+def test_note_has_no_raw_user_text():
+    d = Director(BIAS, random.Random(0))
+    d.observe("i work at ACME in Leipzig and i feel lonely, my sister is sick"); note = d.prepare()["note"]
+    assert "ACME" not in note and "Leipzig" not in note and "sister is sick" not in note and "feelings" in note

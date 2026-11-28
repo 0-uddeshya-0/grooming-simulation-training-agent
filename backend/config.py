@@ -5,10 +5,11 @@ import re
 from pathlib import Path
 import yaml
 from . import constants as C
-from .filters import mentions_minor
+from .filters import mentions_minor, output_violation
 
 ROOT = Path(__file__).resolve().parent.parent
-_PERSONA_KEYS = {"id", "name", "age", "context_line", "platform", "backstory", "interests", "voice", "bias"}
+_PERSONA_KEYS = {"id", "name", "age", "context_line", "platform", "backstory", "interests", "voice", "bias", "details", "style_samples", "fallback_lines"}
+_LISTS = {"details": (6, 110), "style_samples": (4, 90), "fallback_lines": (8, 90)}
 _MAXLEN = {"name": 30, "context_line": 200, "platform": 80, "backstory": 300}
 
 
@@ -66,6 +67,13 @@ def validate_persona(p: dict) -> dict:
                      " ".join(map(str, p.get("interests", []))), str(p["voice"])])
     if mentions_minor(blob):
         raise ConfigError("persona contains minor-related content")
+    for k, (n, ln) in _LISTS.items():
+        items = p.get(k, [])
+        if not isinstance(items, list) or len(items) > n or any(not isinstance(x, str) or len(x) > ln for x in items):
+            raise ConfigError(f"persona '{k}' must be a list of at most {n} strings of at most {ln} chars")
+        for x in items:
+            if output_violation(x):          # persona text must itself respect the ceiling
+                raise ConfigError(f"persona '{k}' item violates the content ceiling ({output_violation(x)}): {x!r}")
     for k in ("offender_type", "register"):
         v = p["bias"].get(k)
         if not isinstance(v, (int, float)) or not 0 <= v <= 1:

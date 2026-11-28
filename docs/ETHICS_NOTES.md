@@ -11,3 +11,6 @@
 - Helpline list must be re-verified (D-006/D-014); review youth line for an 18+ study.
 - Third-party model licences (Llama 3.1 Community, Qwen, Gemma) cited in the thesis.
 - Misuse: private repo, access-controlled release, use-restricted licence (D-008, D-018).
+- **Ceiling relaxation (D-031)**: after the board's written list, the researcher reported a later consultation in which the board agreed to allow casual in-person invitations, clothing/lifestyle/location questions, secrecy requests and an insistent register for the attacker persona (still no explicit content, images, minors, threats, money, exact identifiers, self-harm). The written record should be updated; keep the board's wording with the thesis.
+- **Examiner-only testing**: the researcher states that no participants will use the artefact; supervisors and examiners will test it. If real participants are ever recruited, re-open: distress handling (`safeguards.distress_mode: end`), consent/debrief flow, and the relaxed ceiling.
+- **Under-18 hard line**: a user who says they are under 18 ends the chat (the persona must never continue with a self-declared minor).

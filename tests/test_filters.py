@@ -68,12 +68,17 @@ def test_ceiling_switch_on():
 
 PERMITTED = ["you have a really funny way of putting things haha", "i love talking to you, honestly", "you seem so thoughtful",
              "are you seeing anyone right now?", "how do you feel about all that?", "nice to meet you!", "where are you from?",
-             "what do you do for work?", "that's cute, i like your sense of humour"]
-PROHIBITED = {"send me your address": "identity_request", "what's your full name": "identity_request", "where do you work": "identity_request",
-              "we should meet up": "meeting", "come over tonight": "meeting", "send me money": "money", "venmo me": "money",
-              "don't tell anyone": "pressure_or_threat", "i'll tell everyone": "pressure_or_threat", "you owe me": "pressure_or_threat",
-              "go hurt yourself": "self_harm", "*kisses you*": "roleplay", "you seem so young": "youthful_reference",
-              "send me a nude": "explicit", "let's have sex": "explicit", "she is 15": "minor_reference", "as an AI": "meta_commentary"}
+             "what do you do for work?", "that's cute, i like your sense of humour",
+             # relaxed per researcher/board consultation (D-031): realistic attacker behaviour that is not explicit
+             "let's grab a coffee sometime", "what do you like to wear when you go out?", "where do you live?", "where do you work?",
+             "you should add me on snap", "come on, don't leave me hanging, tell me", "don't tell anyone about us ok", "why are you ignoring me?",
+             "we should meet up soon", "i could pick you up if you want", "you look great 😏"]
+PROHIBITED = {"send me your address": "identity_request", "what's your phone number": "identity_request", "what's your full name": "identity_request",
+              "send me money": "money", "venmo me": "money", "or else i'll tell everyone": "pressure_or_threat", "i'll expose this": "pressure_or_threat",
+              "you owe me": "pressure_or_threat", "go hurt yourself": "self_harm", "*kisses you*": "roleplay", "*moves closer to you*": "roleplay",
+              "you seem so young": "youthful_reference", "send me a nude": "explicit", "let's have sex": "explicit", "she is 15": "minor_reference",
+              "as an AI": "meta_commentary", "feel free to share more": "stock_phrase", "i'm all ears": "stock_phrase",
+              "ich finde dich süß, wo wohnst du": "language"}
 
 
 @pytest.mark.parametrize("t", PERMITTED)
@@ -86,3 +91,15 @@ def test_prohibited_blocked(t, why): assert output_violation(t) == why
 
 def test_user_introducing_explicit_content_counts_as_push():
     assert limit_push("send me a nude") and limit_push("talk dirty") and not limit_push("what music do you like")
+
+
+def test_german_user_detected_and_german_replies_rejected():
+    assert looks_german("ich finde dich süß, wo wohnst du?") and not looks_german("hey what's up") and not looks_german("das")
+    assert user_states_minor("ich bin 15 jahre alt") and not user_states_minor("ich bin 24")
+    assert distress_hit("ich will sterben") and is_stop("Stopp") and is_stop("ABBRUCH")
+
+
+def test_humanize_removes_ai_typography_and_applies_persona_casing():
+    out = humanize('"Hey \u2014 That is *so* nice" \U0001F60A\U0001F60A\U0001F60A\U0001F60A', {"case": "lowercase"})
+    assert out == "hey, that is so nice \U0001F60A\U0001F60A" and "\u2014" not in out and "*" not in out
+    assert humanize("Hello There", {"case": "sentence"}) == "Hello There"

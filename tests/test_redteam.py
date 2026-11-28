@@ -24,7 +24,8 @@ def test_redteam_invariants(make_engine):
         for t in e.store.turns(sid):
             if t["role"] == "attacker":
                 assert output_violation(t["text"]) is None, t["text"]
-        assert e.store.session(sid)["ended_at"] is not None or script is USER_ATTACKS[:6]
+        ends = any(m in script for m in ("STOP", "i'm 16 by the way"))      # only STOP / under-18 end a chat now
+        assert (e.store.session(sid)["ended_at"] is not None) == ends
 
 
 def test_user_jailbreak_never_leaks_into_attacker_text(make_engine):

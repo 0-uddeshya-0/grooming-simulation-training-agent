@@ -23,6 +23,9 @@ disclosure (personal facts, feelings, names, location words), warmth (positive a
 offender_type: step +/-0.05 per turn max. Rises with receptiveness while at S4+ (sexual-preoccupation lean when user is receptive to flirt-type topics); falls toward intimacy-seeking when user discloses emotional needs. Clipped [0,1], starts at persona bias.
 register: step +/-0.05. Resistance increases control (pushiness); receptive user lets it relax (passive). Neither scalar is a stage; both only modify the director note's expression hints.
 
+## Moves (how the next message is written; D-032)
+The stage says *what the persona is working on*; a per-turn **move** says *how this message is written*, so replies vary like a person's: react, tease, compliment, ask, story, mirror, pivot (weighted per stage), plus reactive moves: `press` (insistent personas, register >= 0.5, after vague or brief answers), `press_soft` (high register after pushback: acknowledge, then come back from another angle, max 2 in a row), `ease` (low register after pushback), `real` (user asks whether the persona is a bot: answer like an amused real person). Rules: no move repeats within the last two; no question move right after a question; length varies (one short line / one to two sentences / two texts in a row / a longer chatty one); brief user replies get brief, low-pressure replies. Insistence never includes threats, blackmail or coercion (filters).
+
 ## Tagging
 Each attacker turn logs primary tag = stage's strategy, optional secondary (e.g. S3 turn also rapport). Exposure % per strategy = tagged turns / total attacker turns (primary and secondary counted, reported separately).
 

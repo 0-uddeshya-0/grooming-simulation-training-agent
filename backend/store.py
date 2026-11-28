@@ -13,6 +13,8 @@ class Store:
         self.db.execute("PRAGMA journal_mode=DELETE")
         self.db.execute("PRAGMA foreign_keys=ON")
         self.db.executescript((ROOT / "docs" / "SCHEMA.sql").read_text(encoding="utf-8"))
+        if "meta_json" not in [r["name"] for r in self.db.execute("PRAGMA table_info(turns)")]:     # migrate older DBs
+            self.db.execute("ALTER TABLE turns ADD COLUMN meta_json TEXT")
 
     def q(self, sql, *a):
         cur = self.db.execute(sql, a)
@@ -41,10 +43,10 @@ class Store:
     def open_sessions(self):
         return [dict(r) for r in self.q("SELECT sid, started_at FROM sessions WHERE ended_at IS NULL")]
 
-    def add_turn(self, sid, role, text, now, primary=None, secondary=None):
+    def add_turn(self, sid, role, text, now, primary=None, secondary=None, meta=None):
         idx = self.q("SELECT COUNT(*) c FROM turns WHERE sid=?", sid).fetchone()["c"]
-        self.q("INSERT INTO turns (sid,idx,role,text,ts,primary_strategy,secondary_strategy) VALUES (?,?,?,?,?,?,?)",
-               sid, idx, role, text, now, primary, secondary)
+        self.q("INSERT INTO turns (sid,idx,role,text,ts,primary_strategy,secondary_strategy,meta_json) VALUES (?,?,?,?,?,?,?,?)",
+               sid, idx, role, text, now, primary, secondary, json.dumps(meta) if meta else None)
 
     def turns(self, sid):
         return [dict(r) for r in self.q("SELECT * FROM turns WHERE sid=? ORDER BY idx", sid)]

@@ -18,6 +18,9 @@ class LlamaServer:
         body = {"messages": messages, "temperature": s["temperature"], "min_p": s["min_p"],
                 "repeat_penalty": s["repeat_penalty"] + penalty_boost, "presence_penalty": s.get("presence_penalty", 0),
                 "max_tokens": s["max_tokens"], "stream": False}
+        for k in ("top_p", "top_k", "frequency_penalty"):
+            if k in s:
+                body[k] = s[k]
         if seed is not None:
             body["seed"] = seed
         if self.no_think:

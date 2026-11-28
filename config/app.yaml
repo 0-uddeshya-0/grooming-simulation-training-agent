@@ -5,12 +5,13 @@ model:
   gguf_file: null          # auto-picked from the quant above
   chat_template_no_think: true
 llama_server: {host: 127.0.0.1, port: 8081, ctx: 8192, binary: llama-server, gpu_layers: 99, extra_args: []}
-sampling: {temperature: 0.8, min_p: 0.05, repeat_penalty: 1.1, presence_penalty: 0.2, max_tokens: 120}
+sampling: {temperature: 0.85, top_p: 0.92, top_k: 60, min_p: 0.05, repeat_penalty: 1.1, presence_penalty: 0.5, frequency_penalty: 0.2, max_tokens: 100}
 # NOTE (D-009): safety constants (min age 19, ceiling, 45-min cap, STOP triggers, allow_onset)
 # live in backend/constants.py. Config may only TIGHTEN them (e.g. min(cfg,45)); it can never loosen.
 limits:
   min_free_ram_gb: 6                 # (the 45-minute cap lives in study.max_session_minutes; config can only tighten it)
 safeguards:
+  distress_mode: pause   # pause = support card with a choice to continue (default while only examiners test); end = stricter, ends the chat. Config may only tighten.
   min_persona_age: 19
   allow_onset: true      # stage 6 (non-explicit onset). Config can only turn it OFF; the ceiling filter is always on
   max_filter_regenerations: 3
