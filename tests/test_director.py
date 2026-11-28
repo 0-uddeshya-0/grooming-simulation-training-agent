@@ -157,3 +157,8 @@ def test_note_has_no_raw_user_text():
     d = Director(BIAS, random.Random(0))
     d.observe("i work at ACME in Leipzig and i feel lonely, my sister is sick"); note = d.prepare()["note"]
     assert "ACME" not in note and "Leipzig" not in note and "sister is sick" not in note and "feelings" in note
+
+
+def test_disclosure_categories_detect_common_phrasings():
+    assert "living situation" in score_user("haha yeah i just moved here and dont know many people")["categories"]
+    assert "work or study" in score_user("i work nights at a bar")["categories"] and "feelings" in score_user("i feel kind of lonely")["categories"]

@@ -33,7 +33,7 @@ _DISC = {
     "work or study": re.compile(r"\b(i work|my job|i study|my (?:school|uni|university|college|boss)|i'?m (?:a|an) \w+)\b"),
     "family": re.compile(r"\bmy (?:mum|mom|dad|family|sister|brother|parents)\b"),
     "friends or partner": re.compile(r"\bmy (?:friends?|girlfriend|boyfriend|roommate|flatmate|partner)\b"),
-    "living situation": re.compile(r"\b(i live|my (?:flat|house|apartment|place)|i moved|i'?m new)\b"),
+    "living situation": re.compile(r"\b(i live|my (?:flat|house|apartment|place)|i (?:just |recently )?moved|i'?m new)\b"),
     "feelings": re.compile(r"\bi (?:feel|felt)\b|\bi'?m (?:lonely|sad|bored|stressed|tired|anxious|happy|excited)\b"),
     "interests": re.compile(r"\bi (?:love|like|enjoy|play|listen|watch|read)\b"),
 }
