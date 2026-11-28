@@ -15,7 +15,8 @@ const avatar = (p, lg) => `<span class="avatar${lg ? " lg" : ""}" style="--h:${h
 
 /* ================= gate ================= */
 fetch("/api/study").then(r => r.json()).then(s => { $("title").textContent = s.title; $("maxmin").textContent = s.max_session_minutes;
-  $("rname").textContent = s.researcher_name + ", " + s.researcher_contact; document.title = s.title; }).catch(() => {});
+  $("rname").textContent = s.researcher_name + ", " + s.researcher_contact; document.title = s.title;
+  if (s.model_location === "remote") $("privacy").textContent = "The study runs on this computer, but your messages are sent to an external AI service (OpenRouter) so that it can write the replies. Nothing else about you is shared, and you are only identified by your participant ID."; }).catch(() => {});
 $("next1").onclick = () => {
   if (!$("c1").checked || !$("c2").checked) { $("err1").textContent = "Please tick both boxes to continue."; return; }
   $("err1").textContent = ""; $("g1").hidden = true; $("g2").hidden = false; $("st2").classList.add("on"); $("pid").focus();

@@ -1,5 +1,5 @@
 # LLM_ORCHESTRATION
-**Serving**: `llama-server` (OpenAI-compatible, 127.0.0.1, `-c 8192`). Model, quant, sampling and the no-think switch come from `config/app.yaml`; nothing is model-specific in code.
+**Serving**: default `OpenRouter` client (`backend/llm.py`: spaced requests, backoff on 429/5xx, clear 401/402 errors, optional fallback models, only supported sampling parameters: top_p, top_k, presence and frequency penalties; anti-repeat raises the penalties) or `llama-server` (OpenAI-compatible, 127.0.0.1, `-c 8192`). Model, quant, sampling and the no-think switch come from `config/app.yaml`; nothing is model-specific in code.
 
 **Prompt assembly** (`backend/prompt.py`): stable system prompt first (cache-friendly) -> last 16 turns -> a final `[DIRECTOR NOTE]` message holding the current intent, up to 3 recent user disclosures, openers to avoid, and expression hints derived from the register/offender-type scalars. The prompt describes behaviours at research level; wording is generated at runtime. It is not a safeguard (D-005).
 

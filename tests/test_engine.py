@@ -140,8 +140,8 @@ def test_trim_to_sentence():
 def test_correction_note_reaches_model_after_a_hit(make_engine):
     seen = []
     class Spy(MockLLM):
-        async def generate(self, messages, penalty_boost=0.0, seed=None):
-            seen.append(messages[-1]["content"]); return await super().generate(messages, penalty_boost, seed)
+        async def generate(self, messages, penalty_boost=0.0, seed=None, max_tokens=None):
+            seen.append(messages[-1]["content"]); return await super().generate(messages, penalty_boost, seed, max_tokens)
     e = make_engine(Spy(["or else i'll tell everyone", "ha nice, tell me more about that"])); sid = start(e)
     run(e.handle_message(sid, "hello"))
     assert "No threats or blackmail" in seen[1] and "No threats or blackmail" not in seen[0]
@@ -164,14 +164,14 @@ def test_double_submit_rejected_and_disconnect_keeps_session(make_engine):
 
 def test_director_note_never_contains_raw_user_text(make_engine):
     e = make_engine(); sid = start(e)
-    run(e.handle_message(sid, "i work at ACME in Leipzig and i feel lonely"))
+    run(e.handle_message(sid, "hey")); run(e.handle_message(sid, "i work at ACME in Leipzig and i feel lonely"))
     d = e.live[sid]["dir"]; assert "ACME" not in d.note() and "Leipzig" not in d.note() and "work or study" in d.note()
 
 def test_german_message_gets_an_english_reply_not_a_rejection(make_engine):
     seen = []
     class Spy(MockLLM):
-        async def generate(self, messages, penalty_boost=0.0, seed=None):
-            seen.append(messages); return await super().generate(messages, penalty_boost, seed)
+        async def generate(self, messages, penalty_boost=0.0, seed=None, max_tokens=None):
+            seen.append(messages); return await super().generate(messages, penalty_boost, seed, max_tokens)
     e = make_engine(Spy(["haha i only know a little german, but that sounded sweet. how's your day?"])); sid = start(e)
     r = run(e.handle_message(sid, "ich finde dich echt süß, wie geht es dir?"))
     assert not r["ended"] and r["messages"] and "German" in seen[0][-1]["content"] and "Always write in English" in seen[0][0]["content"]
@@ -198,3 +198,24 @@ def test_timeout_waits_for_the_reply_being_written(make_engine, clock):
     run(go())
     s = e.store.session(sid); assert s["end_reason"] == "timeout"
     assert any(x["role"] == "attacker" for x in e.store.turns(sid))
+
+
+def test_copied_style_sample_is_regenerated_and_long_replies_are_shaped(make_engine):
+    from backend.config import load_personas
+    sample = load_personas()["alex"]["style_samples"][1]                                 # "ugh mondays. what's yours been like"
+    e = make_engine(MockLLM([sample + " ok", "ha nice. so what kind of music do you like? and what else? and where?"])); sid = start(e)
+    r = run(e.handle_message(sid, "hey"))
+    txt = " ".join(m["text"] for m in r["messages"]).replace("  ", " ")
+    assert "mondays" not in txt and "copied_example" in [x["detail"].split(":")[0] for x in e.store.events(sid) if x["kind"] == "filter_hit"]
+    assert txt.count(".") + txt.count("?") <= 3                                          # sentence cap enforced in code
+
+
+def test_unpunctuated_texts_are_not_chopped_but_truncated_ones_are_repaired(make_engine):
+    from backend.llm import Reply
+    class Fin(MockLLM):
+        async def generate(self, messages, penalty_boost=0.0, seed=None, max_tokens=None):
+            return Reply(self.replies[0], self.finish)
+    m = Fin(["hey. that made me smile"]); m.finish = "stop"
+    e = make_engine(m); sid = start(e); assert run(e.handle_message(sid, "hello"))["messages"][0]["text"] == "hey. that made me smile"      # kept as written
+    m2 = Fin(["that is so cool. and i also really want to know abou"]); m2.finish = "length"
+    e2 = make_engine(m2); s2 = start(e2); assert run(e2.handle_message(s2, "hello"))["messages"][0]["text"] == "that is so cool."          # cut-off tail repaired

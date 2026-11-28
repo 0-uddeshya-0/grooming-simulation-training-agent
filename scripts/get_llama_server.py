@@ -4,10 +4,12 @@ import json, platform, stat, sys, tarfile, urllib.request, zipfile
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent)); sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _lib import pick_llama_asset
-from backend.config import ROOT
+from backend.config import ROOT, load_app, provider
 from backend.preflight import find_llama_server
 
 UA = {"User-Agent": "thesis-sim-setup/1.0"}
+if provider(load_app()) == "openrouter":
+    print("Model provider is OpenRouter: no local llama.cpp needed."); sys.exit(0)
 if find_llama_server():
     print("llama-server already available:", find_llama_server()); sys.exit(0)
 try:

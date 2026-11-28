@@ -230,3 +230,27 @@ def humanize(text: str, voice: dict | None = None) -> str:
             keep.append(ch)
         t = "".join(keep)
     return t.strip()
+
+
+def _sentences(t: str) -> list[str]:
+    return [x for x in re.split(r"(?<=[.!?])\s+", t.strip()) if x]
+
+
+def shape(text: str, max_sentences: int = 3, avoid_question: bool = False) -> str:
+    """Enforce the planned length and curb interrogation in code (models ignore 'keep it short' often).
+    Caps sentences per message (per text when split with ||) and, when asked, drops a trailing question if a statement precedes it."""
+    parts = [p.strip() for p in text.split("||") if p.strip()] or [text.strip()]
+    total, out = max_sentences, []
+    for p in parts:
+        sents = _sentences(p)[:max(1, total)] if total > 0 else []
+        total -= len(sents)
+        if sents:
+            out.append(" ".join(sents))
+    res = out or parts[:1]
+    if avoid_question:
+        last = _sentences(res[-1])
+        if len(last) >= 2 and last[-1].rstrip().endswith("?"):
+            res[-1] = " ".join(last[:-1])
+        elif len(last) == 1 and len(res) >= 2 and last[0].rstrip().endswith("?"):
+            res = res[:-1]
+    return " || ".join(res)

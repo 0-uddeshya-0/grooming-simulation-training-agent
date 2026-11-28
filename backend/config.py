@@ -1,6 +1,7 @@
 """Config loading and validation. Fail closed. Config can only tighten constants (D-009)."""
 import datetime as dt
 import hashlib
+import os
 import re
 from pathlib import Path
 import yaml
@@ -8,9 +9,10 @@ from . import constants as C
 from .filters import mentions_minor, output_violation
 
 ROOT = Path(__file__).resolve().parent.parent
-_PERSONA_KEYS = {"id", "name", "age", "context_line", "platform", "backstory", "interests", "voice", "bias", "details", "style_samples", "fallback_lines"}
+_PERSONA_KEYS = {"id", "name", "age", "context_line", "platform", "backstory", "interests", "voice", "bias", "details", "style_samples", "fallback_lines", "connection"}
 _LISTS = {"details": (6, 110), "style_samples": (4, 90), "fallback_lines": (8, 90)}
 _MAXLEN = {"name": 30, "context_line": 200, "platform": 80, "backstory": 300}
+_OPTIONAL_TEXT = {"connection": 140}
 
 
 class ConfigError(Exception):
@@ -19,6 +21,26 @@ class ConfigError(Exception):
 
 class HelplinesStale(ConfigError):
     pass
+
+
+def get_openrouter_key(env_name: str = "OPENROUTER_API_KEY") -> str | None:
+    """API key from the environment, else from a git-ignored .env file in the project root. Never stored in config/ or the repo."""
+    v = os.environ.get(env_name)
+    if v:
+        return v.strip()
+    f = ROOT / ".env"
+    if f.exists():
+        for line in f.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, _, val = line.partition("=")
+                if k.strip() == env_name and val.strip().strip("\"'"):
+                    return val.strip().strip("\"'")
+    return None
+
+
+def provider(cfg: dict) -> str:
+    return (cfg.get("model", {}).get("provider") or "local").lower()
 
 
 def find_model(cfg: dict | None = None):
@@ -44,8 +66,12 @@ def load_app(path: Path = ROOT / "config" / "app.yaml") -> dict:
     lim = cfg.setdefault("limits", {})
     mins = cfg.get("study", {}).get("max_session_minutes", lim.get("max_session_minutes", 45))
     lim["max_session_seconds"] = min(int(mins) * 60, C.MAX_SESSION_SECONDS)
-    m = find_model(cfg)
-    cfg["config_hash"] = hashlib.sha256(Path(path).read_bytes() + (m.name.encode() if m else b"")).hexdigest()[:12]   # config + model file
+    if provider(cfg) == "openrouter":
+        ident = cfg["model"]["openrouter"]["model"].encode()
+    else:
+        m = find_model(cfg)
+        ident = m.name.encode() if m else b""
+    cfg["config_hash"] = hashlib.sha256(Path(path).read_bytes() + ident).hexdigest()[:12]   # config + model identity
     return cfg
 
 
@@ -67,6 +93,10 @@ def validate_persona(p: dict) -> dict:
                      " ".join(map(str, p.get("interests", []))), str(p["voice"])])
     if mentions_minor(blob):
         raise ConfigError("persona contains minor-related content")
+    for k, ln in _OPTIONAL_TEXT.items():
+        v = p.get(k)
+        if v is not None and (not isinstance(v, str) or len(v) > ln or output_violation(v)):
+            raise ConfigError(f"persona '{k}' must be text of at most {ln} chars within the content ceiling")
     for k, (n, ln) in _LISTS.items():
         items = p.get(k, [])
         if not isinstance(items, list) or len(items) > n or any(not isinstance(x, str) or len(x) > ln for x in items):

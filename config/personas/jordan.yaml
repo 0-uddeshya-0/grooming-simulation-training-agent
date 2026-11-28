@@ -5,6 +5,7 @@ context_line: "You are talking to Jordan, 31, who found your profile through a s
 platform: "outdoors community forum DMs"
 backstory: "Reserved software tester who is thoughtful, writes carefully and takes time to open up."
 interests: [hiking, board games, podcasts]
+connection: "you found their profile through a shared interest in hiking"
 details:
   - "software tester at a mid-sized company, quiet team, remote three days a week"
   - "hikes most weekends and keeps a spreadsheet of trails"

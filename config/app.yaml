@@ -1,4 +1,14 @@
 model:
+  provider: openrouter        # openrouter (no local compute; messages go to an external service) | local (llama-server + GGUF)
+  openrouter:
+    base_url: https://openrouter.ai/api/v1
+    model: cognitivecomputations/dolphin-mistral-24b-venice-edition:free     # free slug, sent verbatim in the request body (no paid fallback)
+    fallback_models: []
+    key_env: OPENROUTER_API_KEY   # the key itself lives in .env (git-ignored) or the environment, never in this file
+    data_collection: deny         # asks OpenRouter to route only to providers that do not store/train on prompts (verified working with Venice); null = no restriction
+    min_interval_s: 0.3
+    max_retries: 3
+    timeout_s: 60
   candidate: huihui-qwen3-8b-abliterated-v2   # provisional; decided only after bake-off (DECISIONS D-004)
   quant: Q4_K_M
   gguf_repo: mradermacher/Huihui-Qwen3-8B-abliterated-v2-GGUF   # UNVERIFIED name (no HF access when written). If it fails: python scripts/download_model.py --search "Huihui Qwen3 8B abliterated GGUF"

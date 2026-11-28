@@ -11,7 +11,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from .config import ROOT, HelplinesStale, load_app, load_helplines, load_personas
 from .debrief import build_debrief, build_summary, researcher_block
 from .engine import BusyError, Engine
-from .llm import LlamaServer, MockLLM
+from .llm import LLMError, LlamaServer, MockLLM, OpenRouter, create_llm
 from .store import Store
 
 
@@ -31,8 +31,8 @@ def create_app(cfg=None, llm=None, db_path=None, check_helplines=True) -> FastAP
     personas = load_personas()
     if check_helplines:
         load_helplines()   # preflight: fail early
-    llm = llm or (MockLLM() if os.environ.get("SIM_MOCK_LLM") == "1" else LlamaServer(cfg))
-    db_path = Path(db_path or ROOT / "data" / "study.db")
+    llm = llm or (MockLLM() if os.environ.get("SIM_MOCK_LLM") == "1" else create_llm(cfg))
+    db_path = Path(db_path or os.environ.get("STUDY_DB") or ROOT / "data" / "study.db")
     db_path.parent.mkdir(parents=True, exist_ok=True)
     store = Store(db_path)
     eng = Engine(cfg, personas, store, llm)
@@ -81,8 +81,8 @@ def create_app(cfg=None, llm=None, db_path=None, check_helplines=True) -> FastAP
             raise HTTPException(404)
         except BusyError:
             raise HTTPException(409, "still replying")
-        except Exception as e:   # model server down etc.: session stays open, UI shows a friendly message
-            store.event(sid, "llm_error", type(e).__name__)
+        except Exception as e:   # model service down / rate-limited etc.: session stays open, UI shows a friendly message
+            store.event(sid, "llm_error", (str(e) if isinstance(e, LLMError) else type(e).__name__)[:200])
             raise HTTPException(503, "chat service unavailable")
 
     @app.post("/api/session/{sid}/stop")
@@ -116,7 +116,8 @@ def create_app(cfg=None, llm=None, db_path=None, check_helplines=True) -> FastAP
     def study():
         st = cfg["study"]
         return {"title": st["title"], "researcher_name": st["researcher_name"], "researcher_contact": st["researcher_contact"],
-                "max_session_minutes": cfg["limits"]["max_session_seconds"] // 60}
+                "max_session_minutes": cfg["limits"]["max_session_seconds"] // 60,
+                "model_location": "remote" if isinstance(llm, OpenRouter) else "local"}
 
     @app.get("/api/support")
     def support():
@@ -131,6 +132,8 @@ def create_app(cfg=None, llm=None, db_path=None, check_helplines=True) -> FastAP
     async def health():
         if isinstance(llm, MockLLM):
             return {"model_ready": True}
+        if isinstance(llm, OpenRouter):
+            return {"model_ready": await llm.health()}
         try:
             import httpx
             ls = cfg["llama_server"]

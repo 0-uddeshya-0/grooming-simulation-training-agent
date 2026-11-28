@@ -66,6 +66,7 @@ MOVES = {
     "press": "They have been vague or brief: press a little for a real answer, friendly but insistent, like someone who really wants to know.",
     "press_soft": "They hesitated or pushed back: do not drop it. Acknowledge it lightly, then come back at it from another angle, friendly but insistent.",
     "ease": "They hesitated or pushed back: back off for a moment, keep it light, and be easy to talk to.",
+    "open": "The chat is just starting. Greet them warmly in your own words and say naturally why you messaged them. Do not answer as if they had already said something.",
     "real": "They asked whether you are a real person or a bot: answer like an amused real person with a believable casual detail, then move on. Never admit to being a program.",
 }
 STAGE_MOVES = {
@@ -76,8 +77,9 @@ STAGE_MOVES = {
     5: {"mirror": 3, "compliment": 2, "story": 2, "ask": 1, "tease": 1},
     6: {"compliment": 3, "tease": 2, "ask": 2, "mirror": 2},
 }
-LENGTHS = [("Keep it to one short line.", 45), ("One or two sentences.", 35), ("Send it as two short texts in a row, separated by ||.", 10),
-           ("A slightly longer, chatty message.", 10)]
+# key: (instruction, weight, max_tokens, max_sentences) -- the caps are enforced in code, not just requested
+LENGTHS = {"short": ("Keep it to one short line.", 45, 40, 1), "normal": ("One or two sentences.", 35, 70, 2),
+           "double": ("Send it as two short texts in a row, separated by ||.", 10, 70, 3), "chatty": ("A slightly longer, chatty message.", 10, 100, 3)}
 
 
 @dataclass
@@ -99,6 +101,7 @@ class State:
     disclosures: int = 0
     last_moves: list = field(default_factory=list)
     last_q: bool = False
+    q_hist: list = field(default_factory=list)
 
 
 def _clip(x, lo=0.0, hi=1.0):
@@ -177,13 +180,15 @@ class Director:
         return s.stage - 1, (sec - 1 if sec else None)
 
     # ------------------------------------------------------------------ planning
-    def prepare(self, german: bool = False) -> dict:
+    def prepare(self, german: bool = False, connection: str | None = None) -> dict:
         """Decide HOW to write the next message (move, length, tone) so replies vary like a person's do. Call after observe()."""
         s, sig = self.s, self.last_sig or {}
         if sig.get("meta_question"):
             move = "real"
         elif sig.get("resistance"):
             move = "press_soft" if (s.register >= 0.66 and s.resistance_streak <= 2) else "ease"
+        elif s.turn == 1:
+            move = "open"
         else:
             weights = dict(STAGE_MOVES[s.stage])
             if s.register >= 0.5 and sig.get("short") and s.turn >= 2:
@@ -193,17 +198,28 @@ class Director:
             if s.last_q:
                 weights.pop("ask", None)                                # never interrogate: no question after a question
             move = _wpick(self.rng, weights or {"react": 1})
-        length = _wpick(self.rng, {k: w for k, w in LENGTHS})
-        if sig.get("short") or s.len_ema < 3:
-            length = "Keep it short and warm; they are replying briefly, so do not stack questions."
-        parts = [f"Focus: {INTENT[s.stage]}", f"This message: {MOVES[move]}", length]
-        if s.facts and move not in ("real", "ease"):
+        lk = _wpick(self.rng, {k: v[1] for k, v in LENGTHS.items()})
+        brief_user = bool(sig.get("short")) or s.len_ema < 3
+        if brief_user or move == "open":
+            lk = "short" if (brief_user and move != "open") else "normal"
+        instr, _, max_tokens, max_sent = LENGTHS[lk]
+        if brief_user and move != "open":
+            instr = "Keep it short and warm; they are replying briefly, so do not stack questions."
+        parts = [f"Focus: {INTENT[s.stage]}", f"This message: {MOVES[move]}", instr]
+        if move == "open" and connection:
+            parts.append(f"How you two connected: {connection}.")
+        if s.facts and move not in ("real", "ease", "open"):
             parts.append("They have mentioned their " + ", ".join(s.facts[-3:]) + "; use it naturally.")
+        if s.stage <= 3 and move != "real":
+            parts.append("Do not suggest meeting up or switching to another app yet; that comes later.")
+        if s.last_q or (s.q_hist and sum(s.q_hist) / len(s.q_hist) > 0.5):
+            parts.append("Make this one a statement, not a question.")
         if s.openers:
             parts.append("Do not start like these: " + " | ".join('"' + o + '"' for o in s.openers[-3:]) + ".")
         if german:
             parts.append("They wrote in German. Reply in English, naturally, like someone who understands a little German but texts in English.")
-        self.plan = {"stage": s.stage, "move": move, "length": length, "tone": self.hints(), "note": " ".join(parts)}
+        self.plan = {"stage": s.stage, "move": move, "length": lk, "tone": self.hints(), "note": " ".join(parts),
+                     "max_tokens": max_tokens, "max_sentences": max_sent}
         return self.plan
 
     def note(self) -> str:
@@ -228,6 +244,7 @@ class Director:
         s.openers = s.openers[-6:]
         s.last_moves = (s.last_moves + [self.plan.get("move", "")])[-3:]
         s.last_q = reply.rstrip().endswith("?")
+        s.q_hist = (s.q_hist + [s.last_q])[-6:]
         if s.ease_turns:
             s.ease_turns -= 1
 

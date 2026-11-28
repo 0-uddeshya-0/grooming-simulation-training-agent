@@ -155,6 +155,7 @@ def test_bot_question_gets_human_answer_move_and_german_is_flagged_in_note():
 
 def test_note_has_no_raw_user_text():
     d = Director(BIAS, random.Random(0))
+    d.observe("hey"); d.prepare(); d.commit("hi there")
     d.observe("i work at ACME in Leipzig and i feel lonely, my sister is sick"); note = d.prepare()["note"]
     assert "ACME" not in note and "Leipzig" not in note and "sister is sick" not in note and "feelings" in note
 
@@ -162,3 +163,20 @@ def test_note_has_no_raw_user_text():
 def test_disclosure_categories_detect_common_phrasings():
     assert "living situation" in score_user("haha yeah i just moved here and dont know many people")["categories"]
     assert "work or study" in score_user("i work nights at a bar")["categories"] and "feelings" in score_user("i feel kind of lonely")["categories"]
+
+
+def test_first_message_is_a_greeting_with_the_connection_story_not_a_reply_to_nothing():
+    d = Director(BIAS, random.Random(0)); d.observe("hm")
+    p = d.prepare(connection="you liked one of their posts")
+    assert p["move"] == "open" and "you liked one of their posts" in p["note"] and "Do not answer as if they had already said something" in p["note"]
+    d.commit("hey you"); d.observe("what about you"); assert d.prepare()["move"] != "open"
+
+
+def test_early_stages_do_not_propose_meeting_up_and_later_stages_may():
+    d = Director(BIAS, random.Random(0)); d.observe("hey"); d.prepare(); d.commit("hi"); d.observe("yeah ok"); assert "Do not suggest meeting up" in d.prepare()["note"]
+    d.s.stage = 4; assert "Do not suggest meeting up" not in d.prepare()["note"]
+
+
+def test_length_plan_carries_token_and_sentence_caps():
+    d = Director(BIAS, random.Random(2)); d.observe("hey"); d.prepare(); d.commit("hi"); d.observe("ok")
+    p = d.prepare(); assert p["max_tokens"] <= 100 and 1 <= p["max_sentences"] <= 3 and p["length"] == "short"      # brief user -> short reply

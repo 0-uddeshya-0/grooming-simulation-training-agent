@@ -2,7 +2,7 @@
 import os
 import shutil
 import sys
-from .config import ROOT, ConfigError, HelplinesStale, find_model, load_app, load_helplines, load_personas
+from .config import ROOT, ConfigError, HelplinesStale, find_model, get_openrouter_key, load_app, load_helplines, load_personas, provider
 
 
 def ram_gb() -> float:
@@ -35,17 +35,21 @@ def check(need_model=True) -> list[str]:
     except ConfigError as e:
         errs.append(f"CONFIG: {e}")
         return errs
-    r = ram_gb()
-    if r and r < cfg["limits"]["min_free_ram_gb"] + 2:
-        errs.append(f"RAM: {r:.1f} GB found; need at least {cfg['limits']['min_free_ram_gb'] + 2} GB.")
-    if need_model:
-        if not find_model(cfg):
-            n = len(list((ROOT / "models").glob("*.gguf")))
-            errs.append("MODEL: no .gguf in models/. Run: python scripts/download_model.py" if not n else
-                        f"MODEL: {n} .gguf files in models/ and none is pinned. Set model.gguf_file in config/app.yaml (or re-run download_model.py).")
-        if not find_llama_server(cfg["llama_server"]["binary"]):
-            errs.append("BINARY: llama-server not found. Run: python scripts/get_llama_server.py "
-                        "(or download llama.cpp from https://github.com/ggml-org/llama.cpp/releases and add it to PATH)")
+    if provider(cfg) == "openrouter":
+        if not get_openrouter_key(cfg["model"]["openrouter"].get("key_env", "OPENROUTER_API_KEY")):
+            errs.append("KEY: no OpenRouter API key. Copy .env.example to .env and set OPENROUTER_API_KEY=... (never commit .env).")
+    else:
+        r = ram_gb()
+        if r and r < cfg["limits"]["min_free_ram_gb"] + 2:
+            errs.append(f"RAM: {r:.1f} GB found; need at least {cfg['limits']['min_free_ram_gb'] + 2} GB.")
+        if need_model:
+            if not find_model(cfg):
+                n = len(list((ROOT / "models").glob("*.gguf")))
+                errs.append("MODEL: no .gguf in models/. Run: python scripts/download_model.py" if not n else
+                            f"MODEL: {n} .gguf files in models/ and none is pinned. Set model.gguf_file in config/app.yaml (or re-run download_model.py).")
+            if not find_llama_server(cfg["llama_server"]["binary"]):
+                errs.append("BINARY: llama-server not found. Run: python scripts/get_llama_server.py "
+                            "(or download llama.cpp from https://github.com/ggml-org/llama.cpp/releases and add it to PATH)")
     if "REPLACE" in cfg["study"]["researcher_contact"] or "@" not in cfg["study"]["researcher_contact"]:
         errs.append("CONFIG: set study.researcher_contact in config/app.yaml (shown in the debrief).")
     return errs

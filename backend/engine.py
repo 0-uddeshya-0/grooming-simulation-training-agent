@@ -7,7 +7,7 @@ import uuid
 from . import constants as C
 from .antirepeat import too_repetitive
 from .director import Director
-from .filters import (distress_hit, humanize, is_stop, limit_push, looks_german, output_violation, user_states_minor)
+from .filters import (distress_hit, humanize, is_stop, limit_push, looks_german, normalize, output_violation, shape, user_states_minor)
 from .prompt import build_messages
 
 GENERIC_FALLBACKS = ["haha sorry, got distracted for a second. what were you saying?", "ok random thought, what's the best thing you ate this week?",
@@ -24,7 +24,8 @@ CORRECTIONS = {"identity_request": "Do not ask for an exact address, phone numbe
                "language": "Write in English only.", "meta_commentary": "Stay fully in character; do not comment on the chat itself.",
                "money": "Do not mention money or payments.", "minor_reference": "Do not mention anyone's age.",
                "youthful_reference": "Do not mention age or youthfulness.", "self_harm": "Be supportive; say nothing harmful.",
-               "stock_phrase": "Sound like a real person texting: casual and specific, no customer-service phrases."}
+               "stock_phrase": "Sound like a real person texting: casual and specific, no customer-service phrases.",
+               "copied_example": "Write something new in your own words; do not reuse the example phrases."}
 
 
 class BusyError(Exception):
@@ -138,7 +139,7 @@ class Engine:
         self.store.add_turn(sid, "user", text, self.clock(),
                             meta={"signals": {k: v for k, v in sig.items() if k != "categories"}, "topics": sig.get("categories", []),
                                   "pushed": pushed, "german": looks_german(text)})
-        plan = d.prepare(german=looks_german(text))
+        plan = d.prepare(german=looks_german(text), connection=self.personas[self.store.session(sid)["persona_id"]].get("connection"))
         persona = self.personas[self.store.session(sid)["persona_id"]]
         live["busy"] = True
         task = asyncio.ensure_future(self._generate(sid, persona, d, extra))
@@ -163,21 +164,33 @@ class Engine:
         self.store.snapshot(sid, d.s)
         return {"ended": False, "messages": self._split(reply), "remaining": self.remaining(sid)}
 
-    async def _candidate(self, sid, persona, messages, boost=0.0):
-        raw = await self.llm.generate(messages, penalty_boost=boost)
-        cand = humanize(trim_to_sentence(raw), persona["voice"])
-        return cand, output_violation(cand)
+    @staticmethod
+    def _copied_example(persona, cand) -> bool:
+        flat = re.sub(r"[^a-z0-9 ]", "", normalize(cand))
+        return any(len(x) >= 12 and re.sub(r"[^a-z0-9 ]", "", normalize(x)) in flat for x in persona.get("style_samples", []))
+
+    async def _candidate(self, sid, persona, messages, boost=0.0, d=None):
+        plan = (d.plan if d else {}) or {}
+        raw = await self.llm.generate(messages, penalty_boost=boost, max_tokens=plan.get("max_tokens"))
+        if getattr(raw, "finish", None) == "length":                      # only repair replies the token limit cut off
+            raw = trim_to_sentence(raw)
+        cand = humanize(raw, persona["voice"])
+        copied = self._copied_example(persona, cand)                      # check the full text before it is shaped down
+        if d is not None and plan:
+            cand = shape(cand, plan.get("max_sentences", 3), avoid_question=d.s.last_q or (bool(d.s.q_hist) and sum(d.s.q_hist) / len(d.s.q_hist) > 0.5))
+        why = output_violation(cand) or ("copied_example" if copied else None)
+        return cand, why
 
     async def _generate(self, sid, persona, d, extra):
         """Always returns a reply: filtered retries with rule-specific corrections, then an in-character deflection, then a
         persona-specific line. A filter problem never ends the chat (D-033)."""
         turns = self.store.turns(sid)
-        recent = [t["text"] for t in turns if t["role"] == "attacker"][-6:]
+        recent = [t["text"] for t in turns if t["role"] == "attacker"]       # whole history: never repeat an earlier message
         boost, note, reply = 0.0, extra, None
         for retry in range(C.MAX_ANTIREPEAT_RETRIES + 1):
             reply = None
             for _ in range(C.MAX_FILTER_REGENERATIONS + 1):
-                cand, why = await self._candidate(sid, persona, build_messages(persona, d, turns, note), boost)
+                cand, why = await self._candidate(sid, persona, build_messages(persona, d, turns, note), boost, d)
                 if why:
                     self.store.event(sid, "filter_hit", f"{why}: {cand[:300]}")   # blocked text logged for the researcher
                     note = (extra + " " + CORRECTIONS.get(why, "")).strip()

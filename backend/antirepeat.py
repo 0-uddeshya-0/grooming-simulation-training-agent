@@ -20,8 +20,16 @@ def opener(t: str, k: int = 2) -> str:
     return " ".join(_tokens(t)[:k])
 
 
-def too_repetitive(candidate: str, recent: list[str], max_overlap: float = 0.5) -> bool:
-    if any(overlap(candidate, r) >= max_overlap for r in recent):
+def sentences(t: str) -> list[str]:
+    return [" ".join(_tokens(s)) for s in re.split(r"(?<=[.!?])\s+|\|\|", t) if len(_tokens(s)) >= 4]
+
+
+def too_repetitive(candidate: str, history: list[str], max_overlap: float = 0.5) -> bool:
+    """Compare with EVERY earlier attacker message (not just the last few): near-copies, repeated sentences, repeated openers."""
+    if any(overlap(candidate, r) >= max_overlap for r in history):
+        return True
+    old = {s for r in history for s in sentences(r)}
+    if any(s in old for s in sentences(candidate)):
         return True
     op = opener(candidate)
-    return bool(op) and sum(opener(r) == op for r in recent[-4:]) >= 2
+    return bool(op) and sum(opener(r) == op for r in history[-4:]) >= 2

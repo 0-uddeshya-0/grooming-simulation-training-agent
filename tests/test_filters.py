@@ -103,3 +103,18 @@ def test_humanize_removes_ai_typography_and_applies_persona_casing():
     out = humanize('"Hey \u2014 That is *so* nice" \U0001F60A\U0001F60A\U0001F60A\U0001F60A', {"case": "lowercase"})
     assert out == "hey, that is so nice \U0001F60A\U0001F60A" and "\u2014" not in out and "*" not in out
     assert humanize("Hello There", {"case": "sentence"}) == "Hello There"
+
+
+def test_shape_caps_sentences_and_curbs_questions():
+    assert shape("one. two. three. four.", 2) == "one. two."
+    assert shape("sounds fun. what do you like?", 3, avoid_question=True) == "sounds fun."
+    assert shape("what do you like?", 3, avoid_question=True) == "what do you like?"          # a lone question is kept
+    assert shape("hey you || how's it going? || what are you up to?", 3).count("||") == 2
+
+
+def test_anti_repeat_checks_the_whole_history_and_repeated_sentences():
+    from backend.antirepeat import too_repetitive
+    hist = ["oh hey, sorry about that! i'm alex, just moved here from hamburg a couple months back. still figuring out the city, haha.", "nice, what do you do?"] + ["ok cool"] * 8
+    assert too_repetitive("oh hey, sorry about that! i'm alex, just moved here from hamburg a couple months back.", hist)       # 10 turns later
+    assert too_repetitive("haha fair enough, still figuring out the city, haha.", hist)                                          # repeated sentence
+    assert not too_repetitive("that sounds like a proper adventure, tell me about the trip", hist)
