@@ -37,7 +37,7 @@ def check(need_model=True) -> list[str]:
         return errs
     if provider(cfg) != "local":
         sec = cfg["model"][provider(cfg)]
-        env = sec.get("key_env", "SYNTHETIC_API_KEY")
+        env = sec.get("key_env", "HYPERBOLIC_API_KEY")
         if not get_api_key(env):
             errs.append(f"KEY: no {sec.get('display_name', provider(cfg))} API key. Copy .env.example to .env and set {env}=... (never commit .env).")
     else:

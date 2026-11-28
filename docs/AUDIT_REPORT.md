@@ -1,6 +1,6 @@
 # AUDIT REPORT (2026-11-28)
 
-> **Historical note:** this live audit ran through OpenRouter, which has since been replaced by Synthetic (D-040). The conversation-quality findings and fixes remain valid; the provider-specific rows (the OpenRouter 404 rows) no longer apply. A new live audit is pending credits on the Synthetic account.
+> **Historical note:** this live audit ran through OpenRouter, which has since been replaced (Synthetic, then Hyperbolic: D-040, D-041). The conversation-quality findings and fixes remain valid; the provider-specific rows (the OpenRouter 404 rows) no longer apply. A new live audit is pending.
 
 ## 1. Scope and honesty notes
 - **Unit/integration tests**: 184 pass (mocked model + fake servers). **Browser tests** (Playwright, desktop viewport): consent, 3 personas, unread dots, Stop, STOP text, distress pause, German input, debrief, summary, idle time-out: no console errors.

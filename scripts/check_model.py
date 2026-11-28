@@ -1,5 +1,5 @@
 """Check the cloud model setup end to end with ONE tiny request per model: prints the base URL, the exact model ID sent in the
-JSON body, the HTTP status and the provider's answer. Needs the API key (SYNTHETIC_API_KEY in the environment or .env).
+JSON body, the HTTP status and the provider's answer. Needs the API key (HYPERBOLIC_API_KEY in the environment or .env).
 Run:  python scripts/check_model.py      (a 402 means the key works but the account has no credits/subscription)"""
 import asyncio, json, sys
 from pathlib import Path

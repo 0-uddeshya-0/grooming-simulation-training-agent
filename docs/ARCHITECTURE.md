@@ -1,7 +1,7 @@
 # ARCHITECTURE
 
 ```
-Browser UI (chat, Stop) <-> FastAPI (127.0.0.1) <-> model: Synthetic cloud API (HTTPS, default) | llama-server (GGUF, 127.0.0.1:8081)
+Browser UI (chat, Stop) <-> FastAPI (127.0.0.1) <-> model: Hyperbolic cloud API (HTTPS, default) | llama-server (GGUF, 127.0.0.1:8081)
                                       |
                        SQLite (data/*.db, git-ignored)
                                       |

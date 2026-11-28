@@ -23,7 +23,7 @@ class HelplinesStale(ConfigError):
     pass
 
 
-def get_api_key(env_name: str = "SYNTHETIC_API_KEY") -> str | None:
+def get_api_key(env_name: str = "HYPERBOLIC_API_KEY") -> str | None:
     """Cloud API key from the environment, else from a git-ignored .env file in the project root. Never stored in config/ or the repo."""
     v = os.environ.get(env_name)
     if v:
@@ -40,7 +40,7 @@ def get_api_key(env_name: str = "SYNTHETIC_API_KEY") -> str | None:
 
 
 def provider(cfg: dict) -> str:
-    """'synthetic' (cloud, default) or 'local' (llama.cpp). Anything but 'local' is a cloud provider with a `model.<name>` section."""
+    """'hyperbolic' (cloud, default) or 'local' (llama.cpp). Anything but 'local' is a cloud provider with a `model.<name>` section."""
     return (cfg.get("model", {}).get("provider") or "local").lower()
 
 

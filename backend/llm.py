@@ -1,4 +1,4 @@
-"""LLM clients. CloudLLM = OpenAI-compatible cloud API (Synthetic by default); LlamaServer = local llama.cpp; MockLLM = tests/CI."""
+"""LLM clients. CloudLLM = any OpenAI-compatible cloud API (Hyperbolic by default); LlamaServer = local llama.cpp; MockLLM = tests/CI."""
 import asyncio
 import itertools
 import re
@@ -25,17 +25,22 @@ class LLMError(Exception):
 
 
 def _error_message(r: httpx.Response) -> str:
-    """Providers differ: {"error": "text"} (Synthetic) or {"error": {"message": "text"}} (OpenAI style)."""
+    """Providers differ: {"error": "text"}, {"error": {"message": "text"}} (OpenAI style) or {"message": "text"}."""
     try:
-        e = r.json().get("error", "")
+        j = r.json()
+        e = j.get("error", j.get("message", "")) if isinstance(j, dict) else ""
     except Exception:
         return r.text[:160]
     return str(e.get("message", "") if isinstance(e, dict) else e)[:200]
 
 
+OPTIONAL_PARAMS = ("top_k", "top_p", "repetition_penalty", "presence_penalty", "frequency_penalty")
+
+
 class CloudLLM:
-    """OpenAI-compatible chat completions over HTTPS (config section `model.<provider>`, default `model.synthetic`).
-    Retries 429/5xx/timeouts with backoff, spaces requests, tries fallback models, injects the human-simulation system block."""
+    """OpenAI-compatible chat completions over HTTPS (config section `model.<provider>`, default `model.hyperbolic`).
+    Retries 429/5xx/timeouts with backoff, spaces requests, tries fallback models, injects the human-simulation system block,
+    and drops optional sampling parameters the provider rejects (then remembers that)."""
 
     def __init__(self, cfg: dict, key: str | None = None, transport=None):
         name = provider(cfg)
@@ -43,7 +48,9 @@ class CloudLLM:
         self.name = o.get("display_name", name.capitalize())
         self.url = o["base_url"].rstrip("/")
         self.models = [o["model"], *o.get("fallback_models", [])]
-        self.key = key or get_api_key(o.get("key_env", "SYNTHETIC_API_KEY"))
+        self.key_env = o.get("key_env", "HYPERBOLIC_API_KEY")
+        self.key = key or get_api_key(self.key_env)
+        self.dropped: set[str] = set()
         self.s = cfg["sampling"]
         self.prefix = " ".join((o.get("system_prefix") or "").split())
         self.min_interval, self.retries = float(o.get("min_interval_s", 0.3)), int(o.get("max_retries", 3))
@@ -91,14 +98,17 @@ class CloudLLM:
         body["frequency_penalty"] = min(2.0, s.get("frequency_penalty", 0) + 2 * boost)
         if "repeat_penalty" in s:
             body["repetition_penalty"] = round(s["repeat_penalty"] + boost, 3)
+        for k in self.dropped:
+            body.pop(k, None)
         return body
 
     async def generate(self, messages, penalty_boost: float = 0.0, seed=None, max_tokens=None) -> str:
         if not self.key:
-            raise LLMError(f"{self.name} API key missing. Put SYNTHETIC_API_KEY=... in the .env file (see .env.example).")
+            raise LLMError(f"{self.name} API key missing. Put {self.key_env}=... in the .env file (see .env.example).")
         last_err = "no response"
         for model in self.models:
-            for attempt in range(self.retries + 1):
+            attempt = 0
+            while attempt <= self.retries:
                 async with self._lock:                                # one request at a time, spaced out (rate limits)
                     wait = self._last + self.min_interval - time.time()
                     if wait > 0:
@@ -123,9 +133,15 @@ class CloudLLM:
                     else:
                         msg = _error_message(r)
                         if r.status_code == 401:
-                            raise LLMError(f"{self.name} rejected the API key (401). Check SYNTHETIC_API_KEY.")
+                            raise LLMError(f"{self.name} rejected the API key (401). Check {self.key_env}.")
                         if r.status_code == 402:
                             raise LLMError(f"{self.name}: insufficient credits and no active subscription (402). {msg[:140]}")
+                        if r.status_code in (400, 422):
+                            bad = [k for k in OPTIONAL_PARAMS if k in msg.lower() and k not in self.dropped]
+                            if bad:                                   # provider dislikes an optional parameter: drop it, retry same model
+                                self.dropped.update(bad)
+                                last_err = f"dropped unsupported parameter(s) {bad}"
+                                continue
                         if r.status_code in (400, 404, 422):
                             last_err = f"HTTP {r.status_code} for model {model}: {msg}"
                             break                                     # not retryable here; try the next fallback model
@@ -136,6 +152,7 @@ class CloudLLM:
                             retry_after = None
                 if attempt < self.retries:
                     await asyncio.sleep(min(20.0, retry_after if retry_after else 1.5 * 2 ** attempt))
+                attempt += 1
         raise LLMError(f"{self.name} request failed: {last_err}")
 
 

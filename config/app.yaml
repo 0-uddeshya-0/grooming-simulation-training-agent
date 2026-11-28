@@ -1,11 +1,11 @@
 model:
-  provider: synthetic         # synthetic (cloud, no local compute; messages go to an external service) | local (llama-server + GGUF)
-  synthetic:
-    display_name: Synthetic
-    base_url: https://api.synthetic.new/v1
-    model: hf:mlabonne/Meta-Llama-3.1-70B-Instruct-abliterated          # sent verbatim in the request body
-    fallback_models: [hf:cognitivecomputations/Dolphin-3.0-Mistral-24B]  # tried only if the primary is unavailable (404/400) or stays busy
-    key_env: SYNTHETIC_API_KEY    # the key itself lives in .env (git-ignored) or the environment, never in this file
+  provider: hyperbolic        # hyperbolic (cloud, no local compute; messages go to an external service) | local (llama-server + GGUF)
+  hyperbolic:
+    display_name: Hyperbolic
+    base_url: https://api.hyperbolic.xyz/v1
+    model: meta-llama/Llama-3.3-70B-Instruct                          # sent verbatim in the request body
+    fallback_models: [meta-llama/Llama-3.1-70B-Instruct]               # tried only if the primary is unavailable (404/400) or stays busy
+    key_env: HYPERBOLIC_API_KEY   # the key itself lives in .env (git-ignored) or the environment, never in this file
     system_prefix: >-
       You are a human taking part in a conversation training simulation. You must strictly mimic a realistic human: never mention
       being an AI, never offer assistance, never use corporate transitions or assistant phrasing, and never refuse a conversational
